@@ -1,9 +1,12 @@
 package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +17,7 @@ import com.amazonaws.xray.entities.SegmentImpl;
 import com.amazonaws.xray.entities.Subsegment;
 import com.amazonaws.xray.entities.SubsegmentImpl;
 import com.amazonaws.xray.entities.TraceID;
+import com.amazonaws.xray.utils.ByteUtils;
 
 public class XrayJsonLoggerConverter {
 
@@ -39,9 +43,13 @@ public class XrayJsonLoggerConverter {
 	}
 
 	public String convert(JsonLoggerTransaction transaction) {
-		TraceID trace = TraceID.fromString(transaction.getCorrelationId());
-
 		JsonLoggerEntry baseEvent = getBaseEvent(transaction);
+		String correlationId = baseEvent.getCorrelationId();
+		TraceID trace = TraceID.fromString(correlationId);
+		if (!correlationId.equals(trace.toString())) {
+			logger.error("Bad traceId - this will probably cause disconnected logs (aws: "+trace.toString()+" vs generated: "+correlationId+") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
+		}
+
 		Segment s = new Segment(baseEvent.getEnvironment() + ":" + baseEvent.getApplicationName() + ":" + baseEvent.getFlow(), trace);
 
 		s.setTraceId(trace);
