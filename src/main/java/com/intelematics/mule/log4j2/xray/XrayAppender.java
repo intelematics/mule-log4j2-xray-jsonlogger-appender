@@ -1,7 +1,11 @@
 package com.intelematics.mule.log4j2.xray;
 
+import java.time.Instant;
 import java.util.HashMap;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +24,8 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 @Plugin(name = "Xray", category = "Core", elementType = "appender", printObject = true)
 public class XrayAppender extends AbstractAppender {
 
+	private static final int EXPIRE_AFTER_SECONDS = 120;
+
 	private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
 	private final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
@@ -35,14 +41,13 @@ public class XrayAppender extends AbstractAppender {
 	private String awsRegion;
 
 	private HashMap<String, JsonLoggerTransaction> transactions = new HashMap<>();
+	private TreeMap<Instant, String> transactionExpiry = new TreeMap<>();
 
 	private XrayAppender(final String name, final Layout layout, final Filter filter, final boolean ignoreExceptions,
 			final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
 
 		super(name, filter, layout, ignoreExceptions);
 		this.awsRegion = awsRegion;
-
-		this.awsRegion = "ap-southeast-2";
 
 		System.out.println("## Xray logging started  O.O"); //Can't use the logger here, as it is never setup right now.
 	}
@@ -67,7 +72,7 @@ public class XrayAppender extends AbstractAppender {
 
 			switch (entry.getTrace()) {
 			case START:
-				transaction = new JsonLoggerTransaction();
+				transaction = getTransaction(entry);
 				transaction.setStart(entry);
 				transactions.put(entry.getCorrelationId(), transaction);
 				break;
@@ -91,6 +96,7 @@ public class XrayAppender extends AbstractAppender {
 				transactions.remove(entry.getCorrelationId());
 				break;
 			}
+			
 			if (transaction != null) {
 				getXrayAgent().processTransaction(transaction);
 			}
@@ -107,11 +113,22 @@ public class XrayAppender extends AbstractAppender {
 	}
 
 	private JsonLoggerTransaction getTransaction(JsonLoggerEntry entry) {
+		Instant timeNow = Instant.now();
+		
 		JsonLoggerTransaction transaction;
 		transaction = transactions.get(entry.getCorrelationId());
 		if (transaction == null) {
 			transaction = new JsonLoggerTransaction();
 			transactions.put(entry.getCorrelationId(), transaction);
+			transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
+		}
+		
+		//Remove any expired transactions - this will keep our maps tidy.
+		SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
+		if (!exipredKeys.isEmpty()) {
+			logger.debug("## Xray Purging keys: "+exipredKeys.values().stream().collect(Collectors.joining(",")));
+			exipredKeys.values().forEach(correlationId -> transactions.remove(correlationId));
+			exipredKeys.keySet().forEach(key -> transactionExpiry.remove(key));
 		}
 
 		return transaction;

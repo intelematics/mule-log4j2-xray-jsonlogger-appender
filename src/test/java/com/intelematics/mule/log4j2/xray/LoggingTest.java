@@ -244,5 +244,6 @@ public class LoggingTest {
 				+ "    \"environment\": \"sandbox\",\n"
 				+ "    \"threadName\": \"[MuleRuntime].uber.21: [s-azure-api-sandbox-ia].s-azure-api-main.BLOCKING @671d4dfb\"\n"
 				+ "}");
+		XrayAgent.getInstance("").stop();
 	}
 }

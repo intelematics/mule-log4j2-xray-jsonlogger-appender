@@ -37,10 +37,16 @@ public class JsonLoggerTransaction {
 	public List<JsonLoggerEntry> getAllEntries() {
 		List<JsonLoggerEntry> entries = new ArrayList<JsonLoggerEntry>();
 		
-		entries.add(start);
+		if (start != null) {
+			entries.add(start);
+		}
+		
 		requestTransactions.stream().forEach(req -> entries.addAll(req.getAllEntries()));
 		entries.addAll(exceptions);
-		entries.add(end);
+		
+		if (end != null) {
+			entries.add(end);
+		}
 		
 		return entries;
 	}

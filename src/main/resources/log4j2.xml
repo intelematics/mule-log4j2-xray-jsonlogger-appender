@@ -15,8 +15,8 @@
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
       <PatternLayout>
-        <MarkerPatternSelector defaultPattern="%sn. %msg: Logger=%logger%n">
-          <PatternMatch key="CLASS" pattern="%sn. %msg: Class=%class%n"/>
+        <MarkerPatternSelector defaultPattern="%sn. %msg%n">
+          <PatternMatch key="CLASS" pattern="%sn. %msg%n"/>
         </MarkerPatternSelector>
       </PatternLayout>
     </Console>
@@ -30,8 +30,8 @@
     </Appenders>
     <Loggers>
         <Root level="DEBUG">
-            <AppenderRef ref="xray" />
             <AppenderRef ref="Console" />
+            <AppenderRef ref="xray" />
         </Root>
     </Loggers>
 </Configuration>

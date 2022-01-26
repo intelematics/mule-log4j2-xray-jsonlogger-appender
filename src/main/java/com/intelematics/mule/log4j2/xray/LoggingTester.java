@@ -3,6 +3,7 @@ package com.intelematics.mule.log4j2.xray;
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
+import org.joda.time.Instant;
 
 public class LoggingTester {
 	
@@ -10,6 +11,7 @@ public class LoggingTester {
 		XrayAppender.JsonLoggerClass = "com.intelematics.mule.log4j2.xray.LoggingTester";
 		String correleationId1=UUID.randomUUID().toString();
 		String correleationId2=UUID.randomUUID().toString();
+		Instant now = Instant.now();
 		
 		LogManager.getLogger().info("{\n"
 				+ "    \"correlationId\": \""+correleationId1+"\",\n"
@@ -23,7 +25,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"interface-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T07:27:36.572Z\",\n"
+				+ "    \"timestamp\": \""+now.toString()+"\",\n"
 				+ "    \"content\": {\n"
 				+ "        \"url\": \"/api/app-config?flavour=tfnsw\",\n"
 				+ "        \"method\": \"GET\",\n"
@@ -50,7 +52,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"interface-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T07:27:36.580Z\",\n"
+				+ "    \"timestamp\": \""+now.plus(100).toString()+"\",\n"
 				+ "    \"content\": {\n"
 				+ "        \"statusCode\": 400,"
 				+ "        \"payload\": {\n"
@@ -134,7 +136,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"s-azure-api-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T02:52:03.055Z\",\n"
+				+ "    \"timestamp\": \""+now.plus(500).toString()+"\",\n"
 				+ "    \"content\": {\n"
 				+ "			\"url\": \"/users/whatever?a=1\","
 				+ "			\"method\": \"GET\","
@@ -166,7 +168,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"s-azure-api-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T02:52:13.055Z\",\n"
+				+ "    \"timestamp\": \""+now.plus(600).toString()+"\",\n"
 				+ "    \"content\": \n"
 				+ "            {\n"
 				+ "                \"id\": \"cb74c367-c6b0-4e11-99dd-173c51e4c1b5\",\n"
@@ -195,7 +197,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"s-azure-api-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T02:52:14.055Z\",\n"
+				+ "    \"timestamp\": \""+now.plus(800).toString()+"\",\n"
 				+ "    \"content\": {\n"
 				+ "                \"id\": \"cb74c367-c6b0-4e11-99dd-173c51e4c1b5\",\n"
 				+ "                \"name\": \"INSIGHT-STUDIO\",\n"
@@ -222,7 +224,7 @@ public class LoggingTester {
 				+ "        \"fileName\": \"interface.xml\",\n"
 				+ "        \"rootContainer\": \"s-azure-api-main\"\n"
 				+ "    },\n"
-				+ "    \"timestamp\": \"2022-01-25T02:52:43.055Z\",\n"
+				+ "    \"timestamp\": \""+now.plus(900).toString()+"\",\n"
 				+ "    \"content\": {\n"
 				+ "        \"statusCode\": 200,\n"
 				+ "        \"payload\": \n"
@@ -241,5 +243,6 @@ public class LoggingTester {
 				+ "    \"environment\": \"sandbox\",\n"
 				+ "    \"threadName\": \"[MuleRuntime].uber.21: [s-azure-api-sandbox-ia].s-azure-api-main.BLOCKING @671d4dfb\"\n"
 				+ "}");
+		XrayAgent.getInstance("").stop();
 	}
 }
