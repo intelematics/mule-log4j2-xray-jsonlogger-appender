@@ -1,4 +1,4 @@
-package com.mulesoft.log4j2.xray;
+package com.intelematics.mule.log4j2.xray;
 
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -20,39 +20,31 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 @Plugin(name = "Xray", category = "Core", elementType = "appender", printObject = true)
 public class XrayAppender extends AbstractAppender {
 
-	private static Logger logger2 = LogManager.getLogger(XrayAppender.class);
+	private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
 	private final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
+	static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
 
 	/**
 	 * The queue used to buffer log entries
 	 */
 	private LinkedBlockingQueue<LogEvent> loggingEventsQueue;
 
-	private final XrayAgent xrayAgent;
+	private XrayAgent xrayAgent;
 
-	private String awsAccessKey;
-	private String awsAccessSecret;
 	private String awsRegion;
-	
+
 	private HashMap<String, JsonLoggerTransaction> transactions = new HashMap<>();
 
 	private XrayAppender(final String name, final Layout layout, final Filter filter, final boolean ignoreExceptions,
-			String logGroupName, String logStreamName, final String awsRegion, Integer queueLength,
-			Integer messagesBatchSize) {
+			final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
 
 		super(name, filter, layout, ignoreExceptions);
-		// this.awsAccessKey = new
-		// DefaultAWSCredentialsProviderChain().getCredentials().getAWSAccessKeyId();
-		// this.awsAccessSecret = new
-		// DefaultAWSCredentialsProviderChain().getCredentials().getAWSSecretKey();
 		this.awsRegion = awsRegion;
 
-		this.awsAccessKey = "-accessId-";
-		this.awsAccessSecret = "-secret-";
 		this.awsRegion = "ap-southeast-2";
 
-		this.xrayAgent = new XrayAgent(this.awsRegion, this.awsAccessKey, this.awsAccessSecret);
+		System.out.println("## Xray logging started  O.O"); //Can't use the logger here, as it is never setup right now.
 	}
 
 	@Override
@@ -60,43 +52,58 @@ public class XrayAppender extends AbstractAppender {
 		try {
 			sendXrayEvent(event);
 		} catch (Exception e) {
-			logger2.error("Couldn't send to Xray", e);
+			logger.error("## Couldn't send to Xray", e);
 		}
 	}
-	
+
 	public void sendXrayEvent(LogEvent event) throws JsonMappingException, JsonProcessingException {
 		String loggerName = event.getLoggerName();
 
-		if ("com.mulesoft.log4j2.xray.LoggingTester".equals(loggerName)
-				|| "org.mule.extension.jsonlogger.JsonLogger".equals(loggerName)) {
-			
+		if (JsonLoggerClass.equals(loggerName)) {
+
+			logger.info("## Xray event found ");
 			JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
-			JsonLoggerTransaction transaction,requestTransaction;
+			JsonLoggerTransaction transaction = null, requestTransaction;
+
 			switch (entry.getTrace()) {
-				case START: 
-					transaction = new JsonLoggerTransaction();
-					transaction.setStart(entry);
-					transactions.put(entry.getCorrelationId(), transaction);
-					break;
-				case BEFORE_REQUEST:
-					transaction = getTransaction(entry);
-					requestTransaction = transaction.addRequestTransaction();
-					requestTransaction.setStart(entry);
-					break;
-				case AFTER_REQUEST:
-					transaction = getTransaction(entry);
-					requestTransaction = transaction.getOpenRequestTransaction();
-					requestTransaction.setEnd(entry);
-					break;
-				case END:
-					transaction = getTransaction(entry);
-					transaction.setEnd(entry);
-					xrayAgent.batchTransaction(transaction);
-					transactions.remove(entry.getCorrelationId());
-					break;
+			case START:
+				transaction = new JsonLoggerTransaction();
+				transaction.setStart(entry);
+				transactions.put(entry.getCorrelationId(), transaction);
+				break;
+			case BEFORE_REQUEST:
+				transaction = getTransaction(entry);
+				requestTransaction = transaction.addRequestTransaction();
+				requestTransaction.setStart(entry);
+				break;
+			case AFTER_REQUEST:
+				transaction = getTransaction(entry);
+				requestTransaction = transaction.getOpenRequestTransaction();
+				requestTransaction.setEnd(entry);
+				break;
+			case EXCEPTION:
+				transaction = getTransaction(entry);
+				transaction.addException(entry);
+				break;
+			case END:
+				transaction = getTransaction(entry);
+				transaction.setEnd(entry);
+				transactions.remove(entry.getCorrelationId());
+				break;
 			}
-			
+			if (transaction != null) {
+				getXrayAgent().processTransaction(transaction);
+			}
+
+			logger.info("## Xray logged " + entry.getTrace());
 		}
+	}
+
+	private XrayAgent getXrayAgent() {
+		if (this.xrayAgent == null) {
+			this.xrayAgent = XrayAgent.getInstance(this.awsRegion);
+		}
+		return this.xrayAgent;
 	}
 
 	private JsonLoggerTransaction getTransaction(JsonLoggerEntry entry) {
@@ -106,7 +113,7 @@ public class XrayAppender extends AbstractAppender {
 			transaction = new JsonLoggerTransaction();
 			transactions.put(entry.getCorrelationId(), transaction);
 		}
-		
+
 		return transaction;
 	}
 
@@ -118,9 +125,7 @@ public class XrayAppender extends AbstractAppender {
 	@Override
 	public void stop() {
 		super.stop();
-		while (loggingEventsQueue != null && !loggingEventsQueue.isEmpty()) {
-			xrayAgent.publishPendingMessages();
-		}
+		getXrayAgent().stop();
 	}
 
 	@Override
@@ -131,13 +136,11 @@ public class XrayAppender extends AbstractAppender {
 
 	@PluginFactory
 	public static XrayAppender createXrayAppender(@PluginAttribute(value = "queueLength") Integer queueLength,
-			@PluginElement("Layout") Layout layout, @PluginAttribute(value = "logGroupName") String logGroupName,
-			@PluginAttribute(value = "logStreamName") String logStreamName,
-			@PluginAttribute(value = "awsRegion") String awsRegion, @PluginAttribute(value = "name") String name,
+			@PluginElement("Layout") Layout layout, @PluginAttribute(value = "awsRegion") String awsRegion,
+			@PluginAttribute(value = "name") String name,
 			@PluginAttribute(value = "ignoreExceptions", defaultBoolean = false) Boolean ignoreExceptions,
 
 			@PluginAttribute(value = "messagesBatchSize") Integer messagesBatchSize) {
-		return new XrayAppender(name, layout, null, ignoreExceptions, logGroupName, logStreamName, awsRegion,
-				queueLength, messagesBatchSize);
+		return new XrayAppender(name, layout, null, ignoreExceptions, awsRegion, queueLength, messagesBatchSize);
 	}
 }

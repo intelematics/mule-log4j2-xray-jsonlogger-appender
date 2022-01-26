@@ -1,8 +1,12 @@
-package com.mulesoft.log4j2.xray;
+package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.entities.Entity;
@@ -13,6 +17,7 @@ import com.amazonaws.xray.entities.TraceID;
 
 public class XrayJsonLoggerConverter {
 
+	private static Logger logger = LogManager.getLogger(XrayJsonLoggerConverter.class);
 	AWSXRayRecorder unusedRecorder = new AWSXRayRecorder();
 
 	class Segment extends SegmentImpl {
@@ -76,6 +81,12 @@ public class XrayJsonLoggerConverter {
 			s.addSubsegment(reqSeg);
 		}
 
+		for (JsonLoggerEntry exception : transaction.getExceptions()) {
+			Subsegment exSeg = new SubSegment("Eexception", s);
+			setEventAttributes(s, exSeg, "exception", exception);
+			exSeg.addSubsegment(exSeg);
+		}
+		
 		if (transaction.getEnd() != null) {
 			JsonLoggerEntry end = transaction.getEnd();
 			Subsegment sub = new SubSegment("endLogEntry", s);
@@ -85,12 +96,15 @@ public class XrayJsonLoggerConverter {
 
 		String document = s.serialize();
 
-		System.out.println("document: " + document);
+		logger.debug("## Xray document: " + document);
 
 		return document;
 	}
 
 	private void setEventAttributes(Entity s, Subsegment sub, String prefix, JsonLoggerEntry event) {
+		if (event == null)
+			return;
+		
 		Map<String, Object> annotations = s.getAnnotations();
 		annotations.put(prefix + "_file", event.getFile());
 		annotations.put(prefix + "_flow", event.getFlow());
@@ -101,10 +115,22 @@ public class XrayJsonLoggerConverter {
 
 		sub.setStartTime(eventTime);
 		sub.setEndTime(eventTime);
-		sub.setAnnotations(new HashMap<>(event.getPayload()));
+		
+		sub.setAnnotations(filterLongAnnotations(event.getPayload()));
 		sub.setInProgress(false);
 
 		s.addSubsegment(sub);
+	}
+
+	private Map<String, Object> filterLongAnnotations(Map<String, String> payload) {
+		Map<String, Object> subAnnotations = new HashMap<>(payload);
+		for (Entry<String, Object> entry : subAnnotations.entrySet()) {
+			if (entry.getValue().toString().length() > 250) {
+				entry.setValue("<Long value excluded>");
+			}
+				
+		}
+		return subAnnotations;
 	}
 
 	private void setSegmentAttributes(Entity s, JsonLoggerTransaction transaction) {

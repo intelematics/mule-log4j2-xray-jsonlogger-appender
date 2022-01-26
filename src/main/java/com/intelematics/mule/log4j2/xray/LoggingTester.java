@@ -1,12 +1,13 @@
-package com.mulesoft.log4j2.xray;
+package com.intelematics.mule.log4j2.xray;
 
 import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 
 public class LoggingTester {
+	
 	public static void main(String[] args) {
-		
+		XrayAppender.JsonLoggerClass = "com.intelematics.mule.log4j2.xray.LoggingTester";
 		String correleationId1=UUID.randomUUID().toString();
 		String correleationId2=UUID.randomUUID().toString();
 		

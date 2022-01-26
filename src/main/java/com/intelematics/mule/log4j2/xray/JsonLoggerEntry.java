@@ -1,4 +1,4 @@
-package com.mulesoft.log4j2.xray;
+package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -13,9 +13,10 @@ import lombok.Data;
 
 @Data
 public class JsonLoggerEntry {
-	public enum TraceType {START, END, BEFORE_REQUEST, AFTER_REQUEST, UNKNOWN};
+	public enum TraceType {START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN};
 	
 	private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion;
+	private Instant timeAsInstant;
 	private int statusCode;
 	private Map<String, String> payload;
 	private TraceType trace;
@@ -60,17 +61,24 @@ public class JsonLoggerEntry {
 		environment = root.get("environment").asText();
 		correlationId = root.get("correlationId").asText();
 		tracePoint = root.get("tracePoint").asText();
-		trace = TraceType.valueOf(tracePoint);
+		
+		try {
+			trace = TraceType.valueOf(tracePoint);
+		} catch (IllegalArgumentException e) {
+			trace = TraceType.UNKNOWN;
+		}
+		
 		applicationName = root.get("applicationName").asText();
 		flow = root.get("locationInfo").get("rootContainer").asText();
 		file = root.get("locationInfo").get("fileName").asText();
 		fileLine = root.get("locationInfo").get("lineInFile").asText();
 		time = root.get("timestamp").asText();
+		timeAsInstant = Instant.parse(time);
 		message = root.get("message").asText();
 		JsonNode payloadObj = root.get("content");
 
 		payload = new HashMap<>();
-		if (payloadObj == null || payloadObj.isEmpty()) {}
+		if (payloadObj == null) {}
 		else if (payloadObj.isObject()) {
 			payloadObj.fields().forEachRemaining(field -> {
 				payload.put(field.getKey(), field.getValue().asText());
@@ -88,9 +96,5 @@ public class JsonLoggerEntry {
 		else {
 			payload.put("value", payloadObj.toString());
 		}
-	}
-	
-	public Instant getTimeAsInstant() {
-		return Instant.parse(getTime());
 	}
 }

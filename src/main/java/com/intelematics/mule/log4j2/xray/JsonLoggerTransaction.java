@@ -1,5 +1,6 @@
-package com.mulesoft.log4j2.xray;
+package com.intelematics.mule.log4j2.xray;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +11,7 @@ public class JsonLoggerTransaction {
 	private JsonLoggerEntry start, end;
 	private String correlationId;
 	private List<JsonLoggerTransaction> requestTransactions = new ArrayList<>();
+	private List<JsonLoggerEntry> exceptions = new ArrayList<>();
 	
 	public void setStart(JsonLoggerEntry entry) {
 		this.start = entry;
@@ -22,9 +24,38 @@ public class JsonLoggerTransaction {
 	}
 	
 	public boolean isReadyToSend() {
-		return start != null && end != null;
+		if (end != null)
+			return true;
+		
+		Instant lastActivity = getLastRecordedActivity();
+		if (lastActivity == null)
+			return false;
+		
+		return lastActivity.plusSeconds(60).compareTo(Instant.now()) < 0;
 	}
 
+	public List<JsonLoggerEntry> getAllEntries() {
+		List<JsonLoggerEntry> entries = new ArrayList<JsonLoggerEntry>();
+		
+		entries.add(start);
+		requestTransactions.stream().forEach(req -> entries.addAll(req.getAllEntries()));
+		entries.addAll(exceptions);
+		entries.add(end);
+		
+		return entries;
+	}
+	
+	public Instant getLastRecordedActivity() {
+		Instant lastTime = null;
+		
+		for (JsonLoggerEntry ent : getAllEntries()) {
+			if (lastTime == null || ent.getTimeAsInstant().compareTo(lastTime) < 0) {
+				lastTime = ent.getTimeAsInstant();
+			}
+		};
+		return lastTime;
+	}
+	
 	public JsonLoggerTransaction addRequestTransaction() {
 		JsonLoggerTransaction reqtransaction = new JsonLoggerTransaction();
 		requestTransactions.add(reqtransaction);
@@ -42,5 +73,9 @@ public class JsonLoggerTransaction {
 		}
 		
 		return addRequestTransaction();
+	}
+
+	public void addException(JsonLoggerEntry entry) {
+		exceptions.add(entry);
 	}
 }
