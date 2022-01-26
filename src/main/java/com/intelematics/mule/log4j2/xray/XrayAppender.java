@@ -47,7 +47,7 @@ public class XrayAppender extends AbstractAppender {
 			final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
 
 		super(name, filter, layout, ignoreExceptions);
-		this.awsRegion = awsRegion;
+		this.awsRegion = awsRegion == null ? System.getProperty("awsRegion") : awsRegion;
 
 		System.out.println("## Xray logging started  O.O"); //Can't use the logger here, as it is never setup right now.
 	}
