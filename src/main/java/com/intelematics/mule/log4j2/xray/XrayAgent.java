@@ -24,6 +24,8 @@ public class XrayAgent implements Runnable {
 	private static final int MAX_ITEMS_IN_BATCH = 50;
 
 	private static Logger logger = LogManager.getLogger(XrayAgent.class);
+	private static final Boolean DEBUG_MODE = XrayAppender.DEBUG_MODE;
+
 	private static XrayAgent instance;
 	private static Thread agentThread;
 
@@ -145,7 +147,8 @@ public class XrayAgent implements Runnable {
 		int processedItems = 0;
 
 		if (processingQueue.peek() == null) {
-			logger.debug("## Xray No items available to send");
+			if (DEBUG_MODE)
+				logger.debug("## Xray No items available to send");
 			return false;
 		}
 
@@ -196,7 +199,10 @@ public class XrayAgent implements Runnable {
 		
 		for (JsonLoggerTransaction transaction: transactions) {
 			try {
-				documents.add(jsonLoggerConverter.convert(transaction));
+				String document = jsonLoggerConverter.convert(transaction);
+				documents.add(document);
+				if (DEBUG_MODE)
+					logger.debug("## Xray document: "+document);
 			} catch (Exception e) {
 				//If we can't parse the transaction, it means that we can't progress with it.
 				// At this point our best option is to just drop it, so that we don't foul up the process,
@@ -218,7 +224,8 @@ public class XrayAgent implements Runnable {
 		lastBatchStatus = result.getSdkHttpMetadata().getHttpStatusCode();
 		lastBatchRequestId = result.getSdkResponseMetadata().getRequestId();
 
-		logger.info("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
+		if (DEBUG_MODE)
+			logger.debug("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
 
 		return isLastBatchSuccessful();
 	}

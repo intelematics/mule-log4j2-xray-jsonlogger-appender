@@ -75,26 +75,30 @@ public class JsonLoggerEntry {
 		time = root.get("timestamp").asText();
 		timeAsInstant = Instant.parse(time);
 		message = root.get("message").asText();
-		JsonNode payloadObj = root.get("content");
+		JsonNode contentObj = root.get("content");
 
 		payload = new HashMap<>();
-		if (payloadObj == null) {}
-		else if (payloadObj.isObject()) {
-			payloadObj.fields().forEachRemaining(field -> {
-				payload.put(field.getKey(), field.getValue().asText());
+		if (contentObj == null) {}
+		else if (contentObj.isObject()) {
+			contentObj.fields().forEachRemaining(field -> {
+				if (field.getValue().isTextual()) {
+					payload.put(field.getKey(), field.getValue().asText());
+				} else {
+					payload.put(field.getKey(), field.getValue().toString());
+				}
 			});
 
-			JsonNode session = payloadObj.get("session");
+			JsonNode session = contentObj.get("session");
 			if (session != null) {
 				deviceOS = session.get("deviceOS").asText();
 				deviceBuildVersion = session.get("buildVersion").asText();
 			}
 			
-			JsonNode statusCodeObj = payloadObj.get("statusCode");
+			JsonNode statusCodeObj = contentObj.get("statusCode");
 			statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
 		}
 		else {
-			payload.put("value", payloadObj.toString());
+			payload.put("value", contentObj.toString());
 		}
 	}
 }

@@ -22,6 +22,7 @@ import com.amazonaws.xray.utils.ByteUtils;
 public class XrayJsonLoggerConverter {
 
 	private static Logger logger = LogManager.getLogger(XrayJsonLoggerConverter.class);
+	private static final Boolean DEBUG_MODE = XrayAppender.DEBUG_MODE;
 	AWSXRayRecorder unusedRecorder = new AWSXRayRecorder();
 
 	class Segment extends SegmentImpl {
@@ -44,14 +45,17 @@ public class XrayJsonLoggerConverter {
 
 	public String convert(JsonLoggerTransaction transaction) {
 		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
-		
+
 		String correlationId = transaction.getCorrelationId();
 		TraceID trace = TraceID.fromString(correlationId);
 		if (!correlationId.equals(trace.toString())) {
-			logger.error("Bad traceId - this will probably cause disconnected logs (aws: "+trace.toString()+" vs generated: "+correlationId+") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
+			logger.error("Bad traceId - this will probably cause disconnected logs (aws: " + trace.toString()
+					+ " vs generated: " + correlationId
+					+ ") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
 		}
 
-		Segment s = new Segment(baseEvent.getEnvironment() + ":" + baseEvent.getApplicationName() + ":" + baseEvent.getFlow(), trace);
+		Segment s = new Segment(
+				baseEvent.getEnvironment() + ":" + baseEvent.getApplicationName() + ":" + baseEvent.getFlow(), trace);
 
 		s.setTraceId(trace);
 		setSegmentAttributes(s, transaction);
@@ -76,7 +80,6 @@ public class XrayJsonLoggerConverter {
 
 				Subsegment sub = new SubSegment("beforeRequest", s);
 				setEventAttributes(reqSeg, sub, "before_request", start);
-				reqSeg.addSubsegment(sub);
 			}
 
 			if (request.getStart() != null) {
@@ -84,18 +87,16 @@ public class XrayJsonLoggerConverter {
 
 				Subsegment sub = new SubSegment("afterRequest", s);
 				setEventAttributes(reqSeg, sub, "after_request", end);
-				reqSeg.addSubsegment(sub);
 			}
 
 			s.addSubsegment(reqSeg);
 		}
 
 		for (JsonLoggerEntry exception : transaction.getExceptions()) {
-			Subsegment exSeg = new SubSegment("Eexception", s);
+			Subsegment exSeg = new SubSegment("exception", s);
 			setEventAttributes(s, exSeg, "exception", exception);
-			exSeg.addSubsegment(exSeg);
 		}
-		
+
 		if (transaction.getEnd() != null) {
 			JsonLoggerEntry end = transaction.getEnd();
 			Subsegment sub = new SubSegment("endLogEntry", s);
@@ -105,7 +106,8 @@ public class XrayJsonLoggerConverter {
 
 		String document = s.serialize();
 
-		logger.debug("## Xray document: " + document);
+		if (DEBUG_MODE)
+			logger.debug("## Xray document: " + document);
 
 		return document;
 	}
@@ -113,7 +115,7 @@ public class XrayJsonLoggerConverter {
 	private void setEventAttributes(Entity s, Subsegment sub, String prefix, JsonLoggerEntry event) {
 		if (event == null)
 			return;
-		
+
 		Map<String, Object> annotations = s.getAnnotations();
 		annotations.put(prefix + "_file", event.getFile());
 		annotations.put(prefix + "_flow", event.getFlow());
@@ -124,7 +126,7 @@ public class XrayJsonLoggerConverter {
 
 		sub.setStartTime(eventTime);
 		sub.setEndTime(eventTime);
-		
+
 		sub.setAnnotations(filterLongAnnotations(event.getPayload()));
 		sub.setInProgress(false);
 
@@ -137,7 +139,7 @@ public class XrayJsonLoggerConverter {
 			if (entry.getValue().toString().length() > 250) {
 				entry.setValue("<Long value excluded>");
 			}
-				
+
 		}
 		return subAnnotations;
 	}
@@ -163,18 +165,18 @@ public class XrayJsonLoggerConverter {
 		annotations.put("application_name", baseEvent.getApplicationName());
 		annotations.put("correlation_id", baseEvent.getCorrelationId());
 
-		
 		putRequestField(s, baseEvent, "url", "url", baseEvent.getApplicationName());
 		putRequestField(s, baseEvent, "method", "method");
-		
+
 		if (baseEvent.getDeviceOS() != null || baseEvent.getDeviceBuildVersion() != null) {
-			putRequestField(s, baseEvent, null, "user_agent", baseEvent.getDeviceOS() + " " + baseEvent.getDeviceBuildVersion());
+			putRequestField(s, baseEvent, null, "user_agent",
+					baseEvent.getDeviceOS() + " " + baseEvent.getDeviceBuildVersion());
 		}
-		
+
 		if (transaction.getEnd() != null) {
 			int statusCode = transaction.getEnd().getStatusCode();
 			putResponseValue(s, statusCode, "status");
-			
+
 			if (statusCode >= 400 && statusCode < 500) {
 				s.setError(true);
 			} else if (statusCode >= 500 && statusCode < 600) {
@@ -202,7 +204,8 @@ public class XrayJsonLoggerConverter {
 		putRequestField(s, baseEvent, payloadKey, xrayKey, "");
 	}
 
-	private void putRequestField(Entity s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey, String prefix) {
+	private void putRequestField(Entity s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey,
+			String prefix) {
 		String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
 		if (payloadValue != null || payloadKey == null) {
 			Map<String, Object> request = (HashMap<String, Object>) s.getHttp().get("request");
