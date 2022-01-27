@@ -2,6 +2,8 @@ package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,7 +30,7 @@ public class XrayAppender extends AbstractAppender {
 
 	private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
-	private final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
+	static final Boolean DEBUG_MODE = true; // System.getProperty("log4j.debug") != null;
 	static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
 
 	/**
@@ -49,7 +51,8 @@ public class XrayAppender extends AbstractAppender {
 		super(name, filter, layout, ignoreExceptions);
 		this.awsRegion = awsRegion == null ? System.getProperty("awsRegion") : awsRegion;
 
-		System.out.println("## Xray logging started  O.O"); //Can't use the logger here, as it is never setup right now.
+		System.out.println("## Xray logging started  O.O"); // Can't use the logger here, as it is never setup right
+															// now.
 	}
 
 	@Override
@@ -66,7 +69,8 @@ public class XrayAppender extends AbstractAppender {
 
 		if (JsonLoggerClass.equals(loggerName)) {
 
-			logger.info("## Xray event found ");
+			if (DEBUG_MODE)
+				logger.info("## Xray event found ");
 			JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
 			JsonLoggerTransaction transaction = null, requestTransaction;
 
@@ -96,12 +100,13 @@ public class XrayAppender extends AbstractAppender {
 				transactions.remove(entry.getCorrelationId());
 				break;
 			}
-			
+
 			if (transaction != null) {
 				getXrayAgent().processTransaction(transaction);
 			}
 
-			logger.info("## Xray logged " + entry.getTrace());
+			if (DEBUG_MODE)
+				logger.info("## Xray logged " + entry.getTrace());
 		}
 	}
 
@@ -114,7 +119,7 @@ public class XrayAppender extends AbstractAppender {
 
 	private JsonLoggerTransaction getTransaction(JsonLoggerEntry entry) {
 		Instant timeNow = Instant.now();
-		
+
 		JsonLoggerTransaction transaction;
 		transaction = transactions.get(entry.getCorrelationId());
 		if (transaction == null) {
@@ -122,13 +127,17 @@ public class XrayAppender extends AbstractAppender {
 			transactions.put(entry.getCorrelationId(), transaction);
 			transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
 		}
-		
-		//Remove any expired transactions - this will keep our maps tidy.
+
+		// Remove any expired transactions - this will keep our maps tidy.
 		SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
 		if (!exipredKeys.isEmpty()) {
-			logger.debug("## Xray Purging keys: "+exipredKeys.values().stream().collect(Collectors.joining(",")));
+			if (DEBUG_MODE)
+				logger.debug("## Xray Purging keys: " + exipredKeys.values().stream().collect(Collectors.joining(",")));
 			exipredKeys.values().forEach(correlationId -> transactions.remove(correlationId));
-			exipredKeys.keySet().forEach(key -> transactionExpiry.remove(key));
+
+			Set<Instant> expiredInstants = new HashSet<>();
+			expiredInstants.addAll(exipredKeys.keySet()); // Avoid Concurrent modification
+			expiredInstants.forEach(key -> transactionExpiry.remove(key));
 		}
 
 		return transaction;

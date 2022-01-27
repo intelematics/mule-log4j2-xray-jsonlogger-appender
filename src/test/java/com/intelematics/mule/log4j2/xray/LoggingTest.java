@@ -4,9 +4,7 @@ import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.joda.time.Instant;
-import org.junit.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 public class LoggingTest {
 	
