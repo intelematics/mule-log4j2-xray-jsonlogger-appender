@@ -74,15 +74,22 @@ public class XrayAgent implements Runnable {
 	@Override
 	public void run() {
 		while (!this.stop) {
-			boolean hasMoreItems = sendXrayBatch(false);
-
-			if (!hasMoreItems) {
-				try {
-					Thread.sleep(THREAD_DELAY);
-				} catch (InterruptedException e) {
-					logger.error("## Xray interrupted", e);
-					this.stop();
+			try {
+				boolean hasMoreItems = sendXrayBatch(false);
+	
+				if (!hasMoreItems) {
+					try {
+						Thread.sleep(THREAD_DELAY);
+					} catch (InterruptedException e) {
+						logger.error("## Xray interrupted", e);
+						this.stop();
+					}
 				}
+			} catch (Exception e) {
+				logger.error("## Xray Uncaught error detected, clearing queues as to allow processsing to continue", e);
+				
+				this.inProgressQueue.clear();
+				this.processingQueue.clear();
 			}
 		}
 
@@ -168,9 +175,16 @@ public class XrayAgent implements Runnable {
 		processingQueue.addAll(notReadyQueue);
 		inProgressQueue.clear();
 		
-		if (batchItems.size() == 0) {
-		} else if (!publishXrayBatch(documents)) {
-			logger.info("## Xray Failed to send batch of items. Pushing back onto the queue");
+		try {
+			if (documents.size() == 0) {
+			} else if (!publishXrayBatch(documents)) {
+				//If we have an exception in sending, then 
+				logger.info("## Xray Failed to send batch of items due to a bad status code. Pushing back onto the queue.");
+				processingQueue.addAll(batchItems);
+			}
+		} catch (Exception e) {
+			//If we have an exception in sending, then 
+			logger.error("## Xray Failed to send batch of items. Pushing back onto the queue", e);
 			processingQueue.addAll(batchItems);
 		}
 
@@ -178,8 +192,18 @@ public class XrayAgent implements Runnable {
 	}
 
 	private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
-		List<String> documents = transactions.stream().map(transaction -> jsonLoggerConverter.convert(transaction))
-				.collect(Collectors.toList());
+		List<String> documents = new ArrayList();
+		
+		for (JsonLoggerTransaction transaction: transactions) {
+			try {
+				documents.add(jsonLoggerConverter.convert(transaction));
+			} catch (Exception e) {
+				//If we can't parse the transaction, it means that we can't progress with it.
+				// At this point our best option is to just drop it, so that we don't foul up the process,
+				// or get stuck in a continual loop.
+				logger.error("## Xray Couldn't parse transaction properly. Ignoring this transaction ("+transaction.getCorrelationId()+")", e);
+			}
+		}
 
 		return documents;
 	}
