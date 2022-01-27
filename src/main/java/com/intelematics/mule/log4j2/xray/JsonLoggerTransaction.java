@@ -23,6 +23,14 @@ public class JsonLoggerTransaction {
 		this.correlationId = correlationId == null ? end.getCorrelationId() : correlationId ;
 	}
 	
+	public String getCorrelationId() {
+		if (this.correlationId != null) {
+			return correlationId;
+		}
+		
+		return getFirstEvent().getCorrelationId();
+	}
+	
 	public boolean isReadyToSend() {
 		if (end != null)
 			return true;
@@ -84,4 +92,9 @@ public class JsonLoggerTransaction {
 	public void addException(JsonLoggerEntry entry) {
 		exceptions.add(entry);
 	}
+	
+	public JsonLoggerEntry getFirstEvent() {
+		return getAllEntries().get(0);
+	}
+
 }

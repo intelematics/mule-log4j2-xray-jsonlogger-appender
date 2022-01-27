@@ -43,8 +43,9 @@ public class XrayJsonLoggerConverter {
 	}
 
 	public String convert(JsonLoggerTransaction transaction) {
-		JsonLoggerEntry baseEvent = getBaseEvent(transaction);
-		String correlationId = baseEvent.getCorrelationId();
+		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
+		
+		String correlationId = transaction.getCorrelationId();
 		TraceID trace = TraceID.fromString(correlationId);
 		if (!correlationId.equals(trace.toString())) {
 			logger.error("Bad traceId - this will probably cause disconnected logs (aws: "+trace.toString()+" vs generated: "+correlationId+") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
@@ -143,7 +144,7 @@ public class XrayJsonLoggerConverter {
 
 	private void setSegmentAttributes(Entity s, JsonLoggerTransaction transaction) {
 
-		JsonLoggerEntry baseEvent = getBaseEvent(transaction);
+		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
 
 		Instant startTime = baseEvent.getTimeAsInstant();
 		Instant endTime = transaction.getEnd() != null ? transaction.getEnd().getTimeAsInstant() : null;
@@ -214,9 +215,4 @@ public class XrayJsonLoggerConverter {
 			request.put(xrayKey, prefix + (payloadValue == null ? "" : payloadValue));
 		}
 	}
-
-	private JsonLoggerEntry getBaseEvent(JsonLoggerTransaction transaction) {
-		return transaction.getStart() != null ? transaction.getStart() : transaction.getEnd();
-	}
-
 }
