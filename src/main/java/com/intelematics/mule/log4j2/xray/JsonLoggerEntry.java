@@ -78,7 +78,7 @@ public class JsonLoggerEntry {
 		JsonNode contentObj = root.get("content");
 
 		payload = new HashMap<>();
-		if (contentObj == null) {}
+		if (isNull(contentObj)) {}
 		else if (contentObj.isObject()) {
 			contentObj.fields().forEachRemaining(field -> {
 				if (field.getValue().isTextual()) {
@@ -89,7 +89,7 @@ public class JsonLoggerEntry {
 			});
 
 			JsonNode session = contentObj.get("session");
-			if (session != null) {
+			if (hasValue(session)) {
 				deviceOS = session.get("deviceOS").asText();
 				deviceBuildVersion = session.get("buildVersion").asText();
 			}
@@ -100,5 +100,13 @@ public class JsonLoggerEntry {
 		else {
 			payload.put("value", contentObj.toString());
 		}
+	}
+
+	private boolean isNull(JsonNode node) {
+		return !hasValue(node);
+	}
+	
+	private boolean hasValue(JsonNode node) {
+		return node != null && !node.isNull();
 	}
 }

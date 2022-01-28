@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -56,6 +57,11 @@ public class XrayAgent implements Runnable {
 	}
 
 	private XrayAgent(String awsRegion, String awsAccessKey, String awsAccessSecret) {
+		
+		if (StringUtils.isBlank(awsRegion) || StringUtils.isBlank(awsAccessKey) || StringUtils.isBlank(awsAccessSecret)) {
+			throw new IllegalArgumentException("Aws Region, AccessKey, and secret all need to be set.");
+		}
+		
 		AWSStaticCredentialsProvider creds = new AWSStaticCredentialsProvider(
 				new BasicAWSCredentials(awsAccessKey, awsAccessSecret));
 		this.xrayClient = AWSXRayAsyncClientBuilder.standard().withRegion(Regions.fromName(awsRegion))
@@ -195,7 +201,7 @@ public class XrayAgent implements Runnable {
 	}
 
 	private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
-		List<String> documents = new ArrayList();
+		List<String> documents = new ArrayList<>();
 		
 		for (JsonLoggerTransaction transaction: transactions) {
 			try {
