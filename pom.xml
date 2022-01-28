@@ -9,6 +9,7 @@
     <maven.compiler.target>1.8</maven.compiler.target>
     <aws.sdk.version>1.12.132</aws.sdk.version>
     <log4j.version>2.17.1</log4j.version>
+    <junit.version>5.8.2</junit.version>
     <classifier>custom</classifier>
   </properties>
 
@@ -41,9 +42,14 @@
       <version>${log4j.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.12.0</version>
+    </dependency>
+    <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-secretsmanager</artifactId>
-      <version>1.12.132</version>
+      <version>${aws.sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
@@ -53,7 +59,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-xray</artifactId>
-      <version>1.12.145</version>
+      <version>${aws.sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -64,13 +70,13 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>5.8.2</version>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit</groupId>
       <artifactId>junit-bom</artifactId>
-      <version>5.8.2</version>
+      <version>${junit.version}</version>
       <type>pom</type>
       <scope>test</scope>
     </dependency>

@@ -36,8 +36,6 @@ public class XrayAppender extends AbstractAppender {
 	/**
 	 * The queue used to buffer log entries
 	 */
-	private LinkedBlockingQueue<LogEvent> loggingEventsQueue;
-
 	private XrayAgent xrayAgent;
 
 	private String awsRegion;
