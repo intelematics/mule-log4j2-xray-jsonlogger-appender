@@ -30,7 +30,7 @@ public class XrayAppender extends AbstractAppender {
 
 	private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
-	static final Boolean DEBUG_MODE = true; // System.getProperty("log4j.debug") != null;
+	static final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
 	static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
 
 	/**
