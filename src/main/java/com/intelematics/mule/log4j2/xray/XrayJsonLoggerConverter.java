@@ -82,10 +82,16 @@ public class XrayJsonLoggerConverter {
 				setEventAttributes(reqSeg, sub, "before_request", start);
 			}
 
-			if (request.getStart() != null) {
+			if (request.getEnd() != null) {
 				JsonLoggerEntry end = request.getEnd();
 
 				Subsegment sub = new SubSegment("afterRequest", s);
+				
+				//This ID is recieved back from teh child request and backfilled as the ID used to make the request
+				if (request.getEnd().getTraceId() != null) {
+					reqSeg.setId(request.getEnd().getTraceId());
+				}
+				
 				setEventAttributes(reqSeg, sub, "after_request", end);
 			}
 
@@ -100,6 +106,11 @@ public class XrayJsonLoggerConverter {
 		if (transaction.getEnd() != null) {
 			JsonLoggerEntry end = transaction.getEnd();
 			Subsegment sub = new SubSegment("endLogEntry", s);
+
+			//For a request, this trace ID is given back to the parent, and read out in it's attributes
+			if (transaction.getEnd().getTraceId() != null) {
+				s.setParentId(transaction.getEnd().getTraceId());
+			}
 
 			setEventAttributes(s, sub, "end", end);
 		}

@@ -15,7 +15,7 @@ import lombok.Data;
 public class JsonLoggerEntry {
 	public enum TraceType {START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN};
 	
-	private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion;
+	private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion, traceId;
 	private Instant timeAsInstant;
 	private int statusCode;
 	private Map<String, String> payload;
@@ -96,6 +96,9 @@ public class JsonLoggerEntry {
 			
 			JsonNode statusCodeObj = contentObj.get("statusCode");
 			statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
+			
+			JsonNode traceIdObj = contentObj.get("traceId");
+			traceId = traceIdObj == null ? null : traceIdObj.asText();
 		}
 		else {
 			payload.put("value", contentObj.toString());
