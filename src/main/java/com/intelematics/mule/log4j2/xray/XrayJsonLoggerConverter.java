@@ -115,6 +115,11 @@ public class XrayJsonLoggerConverter {
       setEventAttributes(s, sub, "end", end);
     }
 
+    //This case often happens for async requests 
+    if (transaction.getStart() == null && transaction.getEnd() == null && transaction.getRequestTransactions().size() == 1) {
+      s.setInProgress(s.getSubsegments().get(0).isInProgress());
+    }
+    
     String document = s.serialize();
 
     if (DEBUG_MODE)
