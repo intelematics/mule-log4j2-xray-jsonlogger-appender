@@ -30,7 +30,8 @@ public class XrayAppender extends AbstractAppender {
 
   private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
-  static final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
+  static final Boolean DEBUG_MODE = System.getProperty(""
+      + "") != null;
   static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
 
   /**
@@ -129,7 +130,7 @@ public class XrayAppender extends AbstractAppender {
     SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
     if (!exipredKeys.isEmpty()) {
       if (DEBUG_MODE)
-        logger.debug("## Xray Purging keys: " + exipredKeys.values().stream().collect(Collectors.joining(",")));
+        logger.info("## Xray Purging keys: " + exipredKeys.values().stream().collect(Collectors.joining(",")));
       exipredKeys.values().forEach(correlationId -> transactions.remove(correlationId));
 
       Set<Instant> expiredInstants = new HashSet<>();
