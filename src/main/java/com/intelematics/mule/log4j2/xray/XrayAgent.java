@@ -172,9 +172,11 @@ public class XrayAgent implements Runnable {
       processedItems++;
     }
 
-    logger.debug("## Xray Picked a batch of " + processedItems + " item(s).");
-    logger.debug("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
-
+    if (DEBUG_MODE) {
+      logger.info("## Xray Picked a batch of " + processedItems + " item(s).");
+      logger.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+    }
+    
     List<String> documents = generateXrayBatch(batchItems);
 
     boolean hasNoMoreReadyItems = processingQueue.peek() != null;
@@ -183,7 +185,11 @@ public class XrayAgent implements Runnable {
 
     try {
       if (documents.size() == 0) {
-      } else if (!publishXrayBatch(documents)) {
+      } else if (publishXrayBatch(documents)) {
+        if (DEBUG_MODE) {
+          logger.info("## Xray Successful batch send of "+ documents.size() + " item(s)");
+        }
+      } else {
         // If we have an exception in sending, then
         logger.info("## Xray Failed to send batch of items due to a bad status code. Pushing back onto the queue.");
         processingQueue.addAll(batchItems);
@@ -205,7 +211,7 @@ public class XrayAgent implements Runnable {
         String document = jsonLoggerConverter.convert(transaction);
         documents.add(document);
         if (DEBUG_MODE)
-          logger.debug("## Xray document: " + document);
+          logger.info("## Xray document: " + document);
       } catch (Exception e) {
         // If we can't parse the transaction, it means that we can't progress with it.
         // At this point our best option is to just drop it, so that we don't foul up
@@ -229,7 +235,7 @@ public class XrayAgent implements Runnable {
     lastBatchRequestId = result.getSdkResponseMetadata().getRequestId();
 
     if (DEBUG_MODE)
-      logger.debug("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
+      logger.info("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
 
     return isLastBatchSuccessful();
   }
