@@ -13,103 +13,86 @@ import lombok.Data;
 
 @Data
 public class JsonLoggerEntry {
-	public enum TraceType {START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN};
-	
-	private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion, traceId;
-	private Instant timeAsInstant;
-	private int statusCode;
-	private Map<String, String> payload;
-	private TraceType trace;
-	private static final ObjectMapper mapper = new ObjectMapper();
-	
-	/* Example message
-	 
-	{
-	    "correlationId": "f39e6a90-7cd0-11ec-9cda-0679e83acb76",
-	    "message": "response",
-	    "tracePoint": "START",
-	    "priority": "INFO",
-	    "elapsed": 629,
-	    "locationInfo": {
-	        "lineInFile": "26",
-	        "component": "json-logger:logger",
-	        "fileName": "interface.xml",
-	        "rootContainer": "s-azure-api-main"
-	    },
-	    "timestamp": "2022-01-24T04:49:03.055Z",
-	    "content": {
-	        "payload": [
-	            {
-	                "id": "cb74c367-c6b0-4e11-99dd-173c51e4c1b5",
-	                "name": "INSIGHT-STUDIO",
-	                "description": "INSIGHT-STUDIO",
-	                "dynamic": {
-	                    "userTag": "INS:studio"
-	                }
-	            }
-	        ]
-	    },
-	    "applicationName": "s-azure-api",
-	    "applicationVersion": "1.0.0",
-	    "environment": "sandbox",
-	    "threadName": "[MuleRuntime].uber.21: [s-azure-api-sandbox-ia].s-azure-api-main.BLOCKING @671d4dfb"
-	}	  
- 	*/
-	public JsonLoggerEntry(String logMessage) throws JsonMappingException, JsonProcessingException {
-		JsonNode root = mapper.readTree(logMessage);
+  public enum TraceType {
+    START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN
+  };
 
-		environment = root.get("environment").asText();
-		correlationId = root.get("correlationId").asText();
-		tracePoint = root.get("tracePoint").asText();
-		
-		try {
-			trace = TraceType.valueOf(tracePoint);
-		} catch (IllegalArgumentException e) {
-			trace = TraceType.UNKNOWN;
-		}
-		
-		applicationName = root.get("applicationName").asText();
-		flow = root.get("locationInfo").get("rootContainer").asText();
-		file = root.get("locationInfo").get("fileName").asText();
-		fileLine = root.get("locationInfo").get("lineInFile").asText();
-		time = root.get("timestamp").asText();
-		timeAsInstant = Instant.parse(time);
-		message = root.get("message").asText();
-		JsonNode contentObj = root.get("content");
+  private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion, traceId;
+  private Instant timeAsInstant;
+  private int statusCode;
+  private Map<String, String> payload;
+  private TraceType trace;
+  private static final ObjectMapper mapper = new ObjectMapper();
 
-		payload = new HashMap<>();
-		if (isNull(contentObj)) {}
-		else if (contentObj.isObject()) {
-			contentObj.fields().forEachRemaining(field -> {
-				if (field.getValue().isTextual()) {
-					payload.put(field.getKey(), field.getValue().asText());
-				} else {
-					payload.put(field.getKey(), field.getValue().toString());
-				}
-			});
+  /*
+   * Example message
+   * 
+   * { "correlationId": "f39e6a90-7cd0-11ec-9cda-0679e83acb76", "message":
+   * "response", "tracePoint": "START", "priority": "INFO", "elapsed": 629,
+   * "locationInfo": { "lineInFile": "26", "component": "json-logger:logger",
+   * "fileName": "interface.xml", "rootContainer": "s-azure-api-main" },
+   * "timestamp": "2022-01-24T04:49:03.055Z", "content": { "payload": [ { "id":
+   * "cb74c367-c6b0-4e11-99dd-173c51e4c1b5", "name": "INSIGHT-STUDIO",
+   * "description": "INSIGHT-STUDIO", "dynamic": { "userTag": "INS:studio" } } ]
+   * }, "applicationName": "s-azure-api", "applicationVersion": "1.0.0",
+   * "environment": "sandbox", "threadName":
+   * "[MuleRuntime].uber.21: [s-azure-api-sandbox-ia].s-azure-api-main.BLOCKING @671d4dfb"
+   * }
+   */
+  public JsonLoggerEntry(String logMessage) throws JsonMappingException, JsonProcessingException {
+    JsonNode root = mapper.readTree(logMessage);
 
-			JsonNode session = contentObj.get("session");
-			if (hasValue(session)) {
-				deviceOS = session.get("deviceOS").asText();
-				deviceBuildVersion = session.get("buildVersion").asText();
-			}
-			
-			JsonNode statusCodeObj = contentObj.get("statusCode");
-			statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
-			
-			JsonNode traceIdObj = contentObj.get("traceId");
-			traceId = traceIdObj == null ? null : traceIdObj.asText();
-		}
-		else {
-			payload.put("value", contentObj.toString());
-		}
-	}
+    environment = root.get("environment").asText();
+    correlationId = root.get("correlationId").asText();
+    tracePoint = root.get("tracePoint").asText();
 
-	private boolean isNull(JsonNode node) {
-		return !hasValue(node);
-	}
-	
-	private boolean hasValue(JsonNode node) {
-		return node != null && !node.isNull();
-	}
+    try {
+      trace = TraceType.valueOf(tracePoint);
+    } catch (IllegalArgumentException e) {
+      trace = TraceType.UNKNOWN;
+    }
+
+    applicationName = root.get("applicationName").asText();
+    flow = root.get("locationInfo").get("rootContainer").asText();
+    file = root.get("locationInfo").get("fileName").asText();
+    fileLine = root.get("locationInfo").get("lineInFile").asText();
+    time = root.get("timestamp").asText();
+    timeAsInstant = Instant.parse(time);
+    message = root.get("message").asText();
+    JsonNode contentObj = root.get("content");
+
+    payload = new HashMap<>();
+    if (isNull(contentObj)) {
+    } else if (contentObj.isObject()) {
+      contentObj.fields().forEachRemaining(field -> {
+        if (field.getValue().isTextual()) {
+          payload.put(field.getKey(), field.getValue().asText());
+        } else {
+          payload.put(field.getKey(), field.getValue().toString());
+        }
+      });
+
+      JsonNode session = contentObj.get("session");
+      if (hasValue(session)) {
+        deviceOS = session.get("deviceOS").asText();
+        deviceBuildVersion = session.get("buildVersion").asText();
+      }
+
+      JsonNode statusCodeObj = contentObj.get("statusCode");
+      statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
+
+      JsonNode traceIdObj = contentObj.get("traceId");
+      traceId = traceIdObj == null ? null : traceIdObj.asText();
+    } else {
+      payload.put("value", contentObj.toString());
+    }
+  }
+
+  private boolean isNull(JsonNode node) {
+    return !hasValue(node);
+  }
+
+  private boolean hasValue(JsonNode node) {
+    return node != null && !node.isNull();
+  }
 }
