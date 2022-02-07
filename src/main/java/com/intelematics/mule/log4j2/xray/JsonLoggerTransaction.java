@@ -49,7 +49,10 @@ public class JsonLoggerTransaction {
       entries.add(start);
     }
 
-    requestTransactions.stream().forEach(req -> entries.addAll(req.getAllEntries()));
+    for (JsonLoggerTransaction req : requestTransactions) {
+      entries.addAll(req.getAllEntries());
+    }
+    
     entries.addAll(exceptions);
 
     if (end != null) {
