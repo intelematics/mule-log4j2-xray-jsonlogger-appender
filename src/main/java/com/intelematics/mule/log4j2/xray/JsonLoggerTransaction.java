@@ -91,7 +91,7 @@ public class JsonLoggerTransaction {
     }
 
     for (JsonLoggerTransaction transaction : requestTransactions) {
-      if (transaction.getEnd() == null) {
+      if (transaction.getEnd() == null && transaction.getStart().getFlow().equals(entry.getFlow())) {
         transaction.setEnd(entry);
         return;
       }
