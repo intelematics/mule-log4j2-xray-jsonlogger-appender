@@ -35,7 +35,7 @@ public class JsonLoggerTransaction {
   public boolean isReadyToSend() {
     //Lets give a 5 second delay, to allow cleanup
     if (end != null)
-      return end.getTimeAsInstant().plusSeconds(5).compareTo(Instant.now()) < 0;;
+      return end.getTimeAsInstant().plusSeconds(5).compareTo(Instant.now()) < 0;
 
     Instant lastActivity = getLastRecordedActivity();
     if (lastActivity == null)
