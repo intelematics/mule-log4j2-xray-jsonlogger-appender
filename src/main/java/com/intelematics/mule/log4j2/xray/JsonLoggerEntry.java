@@ -65,9 +65,40 @@ public class JsonLoggerEntry {
     if (isNull(contentObj)) {
     } else if (contentObj.isObject()) {
       
+      int unknownFields[] = {0};
+      
+      contentObj.fields().forEachRemaining(field -> {
+        JsonNode value = field.getValue();
+        switch(field.getKey()) {
+          case "session":
+            //Session fields from a device should be pulled out
+            if (hasValue(value)) {
+              deviceOS = value.get("deviceOS").asText();
+              deviceBuildVersion = value.get("buildVersion").asText();
+            }
+            break;
+            
+          case "statusCode":
+            //Usually on a END trace - this will be the status code of the whole request
+            statusCode = value == null ? 0 : value.asInt();
+            break;
+            
+          case "traceId":
+            //The trace id from the AFTER_REQUEST, etc. This is used to map the requests up
+            traceId = value == null ? null : value.asText();
+            break;
+            
+          case "payload":
+            break;
+            
+          default:
+            unknownFields[0]++;
+        }
+      });
+      
+      
       // We have the payload and optionally the traceid - so lets split it out for usability
-      if ((contentObj.size() == 1 && contentObj.has("payload")) ||
-          (contentObj.size() == 2 && contentObj.has("payload") && contentObj.has("traceId"))) {
+      if (unknownFields[0] == 0 && contentObj.has("payload")) {
         JsonNode payloadObj = contentObj.get("payload");
         if (payloadObj.isObject()) {
           appendPayloadFields(payloadObj);
@@ -78,20 +109,7 @@ public class JsonLoggerEntry {
         appendPayloadFields(contentObj);
       }
 
-      //Session fields from a device should be pulled out
-      JsonNode session = contentObj.get("session");
-      if (hasValue(session)) {
-        deviceOS = session.get("deviceOS").asText();
-        deviceBuildVersion = session.get("buildVersion").asText();
-      }
 
-      //Usually on a END trace - this will be the status code of the whole request
-      JsonNode statusCodeObj = contentObj.get("statusCode");
-      statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
-
-      //The trace id from the AFTER_REQUEST, etc. This is used to map the requests up
-      JsonNode traceIdObj = contentObj.get("traceId");
-      traceId = traceIdObj == null ? null : traceIdObj.asText();
     } else {
       payload.put("value", contentObj.toString());
     }
