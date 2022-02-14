@@ -91,7 +91,6 @@ public class XrayAppender extends AbstractAppender {
       case END:
         transaction = getTransaction(entry);
         transaction.setEnd(entry);
-        transactions.remove(entry.getCorrelationId());
         break;
       default:
       }
@@ -122,6 +121,9 @@ public class XrayAppender extends AbstractAppender {
       transactions.put(entry.getCorrelationId(), transaction);
       transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
     }
+
+    if (DEBUG_MODE)
+      logger.info("## Xray keys to expire: " + transactionExpiry.size() + ", open transactions: " + transactions.size());
 
     // Remove any expired transactions - this will keep our maps tidy.
     SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
