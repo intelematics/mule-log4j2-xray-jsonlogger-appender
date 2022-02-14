@@ -68,7 +68,7 @@ public class JsonLoggerEntry {
       // We have the payload and optionally the traceid - so lets split it out for usability
       if ((contentObj.size() == 1 && contentObj.has("payload")) ||
           (contentObj.size() == 2 && contentObj.has("payload") && contentObj.has("traceId"))) {
-        JsonNode payloadObj = root.get("payload");
+        JsonNode payloadObj = contentObj.get("payload");
         if (payloadObj.isObject()) {
           appendPayloadFields(payloadObj);
         } else {
