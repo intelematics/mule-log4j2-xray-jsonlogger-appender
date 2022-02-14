@@ -83,17 +83,23 @@ public class JsonLoggerTransaction {
     return reqtransaction;
   }
 
-  public JsonLoggerTransaction getOpenRequestTransaction() {
+  public synchronized void setTransactionEndRequest(JsonLoggerEntry entry) {
     if (requestTransactions.size() == 0) {
-      return addRequestTransaction();
+      JsonLoggerTransaction transaction = addRequestTransaction();
+      transaction.setEnd(entry);
+      return;
     }
 
-    JsonLoggerTransaction lastTransaction = requestTransactions.get(requestTransactions.size() - 1);
-    if (lastTransaction.getEnd() == null) {
-      return lastTransaction;
+    for (JsonLoggerTransaction transaction : requestTransactions) {
+      if (transaction.getEnd() == null) {
+        transaction.setEnd(entry);
+        return;
+      }
     }
 
-    return addRequestTransaction();
+    JsonLoggerTransaction transaction = addRequestTransaction();
+    transaction.setEnd(entry);
+    return;
   }
 
   public void addException(JsonLoggerEntry entry) {
