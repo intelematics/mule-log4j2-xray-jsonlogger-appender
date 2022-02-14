@@ -28,21 +28,24 @@ public class JsonLoggerTransaction {
       return correlationId;
     }
 
-    return getFirstEvent().getCorrelationId();
+    correlationId = getFirstEvent().getCorrelationId();
+    return correlationId;
   }
 
   public boolean isReadyToSend() {
+    //Lets give a 5 second delay, to allow cleanup
     if (end != null)
-      return true;
+      return end.getTimeAsInstant().plusSeconds(5).compareTo(Instant.now()) < 0;;
 
     Instant lastActivity = getLastRecordedActivity();
     if (lastActivity == null)
       return false;
 
+    //if we haven't got any activity after 60 seconds, lets assume it is done, and send it.
     return lastActivity.plusSeconds(60).compareTo(Instant.now()) < 0;
   }
 
-  public List<JsonLoggerEntry> getAllEntries() {
+  public synchronized List<JsonLoggerEntry> getAllEntries() {
     List<JsonLoggerEntry> entries = new ArrayList<JsonLoggerEntry>();
 
     if (start != null) {

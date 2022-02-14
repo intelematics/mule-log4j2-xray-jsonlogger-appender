@@ -64,28 +64,47 @@ public class JsonLoggerEntry {
     payload = new HashMap<>();
     if (isNull(contentObj)) {
     } else if (contentObj.isObject()) {
-      contentObj.fields().forEachRemaining(field -> {
-        if (field.getValue().isTextual()) {
-          payload.put(field.getKey(), field.getValue().asText());
+      
+      // We have the payload and optionally the traceid - so lets split it out for usability
+      if ((contentObj.size() == 1 && contentObj.has("payload")) ||
+          (contentObj.size() == 2 && contentObj.has("payload") && contentObj.has("traceId"))) {
+        JsonNode payloadObj = root.get("payload");
+        if (payloadObj.isObject()) {
+          appendPayloadFields(payloadObj);
         } else {
-          payload.put(field.getKey(), field.getValue().toString());
+          payload.put("payload", payloadObj.asText());
         }
-      });
+      } else {
+        appendPayloadFields(contentObj);
+      }
 
+      //Session fields from a device should be pulled out
       JsonNode session = contentObj.get("session");
       if (hasValue(session)) {
         deviceOS = session.get("deviceOS").asText();
         deviceBuildVersion = session.get("buildVersion").asText();
       }
 
+      //Usually on a END trace - this will be the status code of the whole request
       JsonNode statusCodeObj = contentObj.get("statusCode");
       statusCode = statusCodeObj == null ? 0 : statusCodeObj.asInt();
 
+      //The trace id from the AFTER_REQUEST, etc. This is used to map the requests up
       JsonNode traceIdObj = contentObj.get("traceId");
       traceId = traceIdObj == null ? null : traceIdObj.asText();
     } else {
       payload.put("value", contentObj.toString());
     }
+  }
+
+  private void appendPayloadFields(JsonNode contentObj) {
+    contentObj.fields().forEachRemaining(field -> {
+      if (field.getValue().isTextual()) {
+        payload.put(field.getKey(), field.getValue().asText());
+      } else {
+        payload.put(field.getKey(), field.getValue().toString());
+      }
+    });
   }
 
   private boolean isNull(JsonNode node) {
