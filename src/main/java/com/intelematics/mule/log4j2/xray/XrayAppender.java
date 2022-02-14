@@ -6,7 +6,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
@@ -43,9 +42,9 @@ public class XrayAppender extends AbstractAppender {
   private HashMap<String, JsonLoggerTransaction> transactions = new HashMap<>();
   private TreeMap<Instant, String> transactionExpiry = new TreeMap<>();
 
-  private XrayAppender(final String name, final Layout layout, final Filter filter, final boolean ignoreExceptions, final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
+  private XrayAppender(final String name, final Layout<?> layout, final Filter filter, final boolean ignoreExceptions, final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
 
-    super(name, filter, layout, ignoreExceptions);
+    super(name, filter, layout, ignoreExceptions, null);
     this.awsRegion = awsRegion == null ? System.getProperty("awsRegion") : awsRegion;
 
     System.out.println("## Xray logging started  O.O"); // Can't use the logger here, as it is never setup right
@@ -96,6 +95,7 @@ public class XrayAppender extends AbstractAppender {
         transaction.setEnd(entry);
         transactions.remove(entry.getCorrelationId());
         break;
+      default:
       }
 
       if (transaction != null) {
@@ -158,7 +158,7 @@ public class XrayAppender extends AbstractAppender {
   }
 
   @PluginFactory
-  public static XrayAppender createXrayAppender(@PluginAttribute(value = "queueLength") Integer queueLength, @PluginElement("Layout") Layout layout,
+  public static XrayAppender createXrayAppender(@PluginAttribute(value = "queueLength") Integer queueLength, @PluginElement("Layout") Layout<?> layout,
       @PluginAttribute(value = "awsRegion") String awsRegion, @PluginAttribute(value = "name") String name,
       @PluginAttribute(value = "ignoreExceptions", defaultBoolean = false) Boolean ignoreExceptions,
 

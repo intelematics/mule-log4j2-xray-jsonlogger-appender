@@ -1,12 +1,9 @@
 package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,7 +14,6 @@ import com.amazonaws.xray.entities.SegmentImpl;
 import com.amazonaws.xray.entities.Subsegment;
 import com.amazonaws.xray.entities.SubsegmentImpl;
 import com.amazonaws.xray.entities.TraceID;
-import com.amazonaws.xray.utils.ByteUtils;
 
 public class XrayJsonLoggerConverter {
 
@@ -210,6 +206,7 @@ public class XrayJsonLoggerConverter {
 
   private void putResponseValue(Entity s, Object payloadValue, String xrayKey) {
     if (payloadValue != null) {
+      @SuppressWarnings("unchecked")
       Map<String, Object> response = (HashMap<String, Object>) s.getHttp().get("response");
 
       if (response == null) {
@@ -228,6 +225,7 @@ public class XrayJsonLoggerConverter {
   private void putRequestField(Entity s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey, String prefix) {
     String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
     if (payloadValue != null || payloadKey == null) {
+      @SuppressWarnings("unchecked")
       Map<String, Object> request = (HashMap<String, Object>) s.getHttp().get("request");
 
       if (request == null) {
