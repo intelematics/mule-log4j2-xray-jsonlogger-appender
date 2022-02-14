@@ -77,7 +77,7 @@ public class JsonLoggerTransaction {
     return lastTime;
   }
 
-  public JsonLoggerTransaction addRequestTransaction() {
+  public synchronized JsonLoggerTransaction addRequestTransaction() {
     JsonLoggerTransaction reqtransaction = new JsonLoggerTransaction();
     requestTransactions.add(reqtransaction);
     return reqtransaction;
