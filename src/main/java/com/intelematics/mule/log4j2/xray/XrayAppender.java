@@ -68,7 +68,7 @@ public class XrayAppender extends AbstractAppender {
       if (DEBUG_MODE)
         logger.info("## Xray event found ");
       JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
-      JsonLoggerTransaction transaction = null, requestTransaction;
+      JsonLoggerTransaction transaction = null;
 
       switch (entry.getTrace()) {
       case START:
@@ -78,13 +78,11 @@ public class XrayAppender extends AbstractAppender {
         break;
       case BEFORE_REQUEST:
         transaction = getTransaction(entry);
-        requestTransaction = transaction.addRequestTransaction();
-        requestTransaction.setStart(entry);
+        transaction.addRequestTransaction().setStart(entry);
         break;
       case AFTER_REQUEST:
         transaction = getTransaction(entry);
-        requestTransaction = transaction.getOpenRequestTransaction();
-        requestTransaction.setEnd(entry);
+        transaction.setTransactionEndRequest(entry);
         break;
       case EXCEPTION:
         transaction = getTransaction(entry);
