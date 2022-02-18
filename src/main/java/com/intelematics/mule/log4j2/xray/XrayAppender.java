@@ -30,6 +30,7 @@ public class XrayAppender extends AbstractAppender {
   private static Logger logger = LogManager.getLogger(XrayAppender.class);
 
   static final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
+  static final Boolean DISABLE_LOGGING = System.getProperty("log4j.xray.disable") != null;
   static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
 
   /**
@@ -54,7 +55,11 @@ public class XrayAppender extends AbstractAppender {
   @Override
   public void append(LogEvent event) {
     try {
-      sendXrayEvent(event);
+      
+      if (!DISABLE_LOGGING) {
+        sendXrayEvent(event);
+      }
+      
     } catch (Exception e) {
       logger.error("## Couldn't send to Xray", e);
     }
