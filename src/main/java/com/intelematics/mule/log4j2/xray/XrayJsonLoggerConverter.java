@@ -5,9 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.amazonaws.xray.AWSXRayRecorder;
 import com.amazonaws.xray.entities.Entity;
 import com.amazonaws.xray.entities.SegmentImpl;
@@ -15,10 +12,12 @@ import com.amazonaws.xray.entities.Subsegment;
 import com.amazonaws.xray.entities.SubsegmentImpl;
 import com.amazonaws.xray.entities.TraceID;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 public class XrayJsonLoggerConverter {
 
-  private static Logger logger = LogManager.getLogger(XrayJsonLoggerConverter.class);
-  private static final Boolean DEBUG_MODE = XrayAppender.DEBUG_MODE;
+  private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
   AWSXRayRecorder unusedRecorder = new AWSXRayRecorder();
 
   class Segment extends SegmentImpl {
@@ -45,7 +44,7 @@ public class XrayJsonLoggerConverter {
     String correlationId = transaction.getCorrelationId();
     TraceID trace = TraceID.fromString(correlationId);
     if (!correlationId.equals(trace.toString())) {
-      logger.error("Bad traceId - this will probably cause disconnected logs (aws: " + trace.toString() + " vs generated: " + correlationId
+      log.error("Bad traceId - this will probably cause disconnected logs (aws: " + trace.toString() + " vs generated: " + correlationId
           + ") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
     }
 
@@ -119,7 +118,7 @@ public class XrayJsonLoggerConverter {
     String document = s.serialize();
 
     if (DEBUG_MODE)
-      logger.debug("## Xray document: " + document);
+      log.debug("## Xray document: " + document);
 
     return document;
   }
