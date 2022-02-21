@@ -6,8 +6,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -18,14 +16,16 @@ import com.amazonaws.services.xray.AWSXRayAsyncClientBuilder;
 import com.amazonaws.services.xray.model.PutTraceSegmentsRequest;
 import com.amazonaws.services.xray.model.PutTraceSegmentsResult;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 public class XrayAgent implements Runnable {
 
   private static final int FAIL_ON_FAILED_BATCH_SENDS = 2;
   private static final long THREAD_DELAY = 500L;
   private static final int MAX_ITEMS_IN_BATCH = 50;
 
-  private static Logger logger = LogManager.getLogger(XrayAgent.class);
-  private static final Boolean DEBUG_MODE = XrayAppender.DEBUG_MODE;
+  private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
 
   private static XrayAgent instance;
   private static Thread agentThread;
@@ -33,7 +33,7 @@ public class XrayAgent implements Runnable {
   private final AWSXRayAsync xrayClient;
   private final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
-  private boolean stop = false;
+  private boolean running = true;
   private LinkedBlockingQueue<JsonLoggerTransaction> processingQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
   private LinkedBlockingQueue<JsonLoggerTransaction> inProgressQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
   private int lastBatchStatus;
@@ -67,8 +67,8 @@ public class XrayAgent implements Runnable {
   }
 
   public void stop() {
-    this.stop = true;
-    logger.info("## Stopping Xray");
+    this.running = false;
+    log.info("## Stopping Xray");
     try {
       agentThread.join();
     } catch (InterruptedException e) {
@@ -78,7 +78,7 @@ public class XrayAgent implements Runnable {
 
   @Override
   public void run() {
-    while (!this.stop) {
+    while (this.running) {
       try {
         boolean hasMoreItems = sendXrayBatch(false);
 
@@ -86,19 +86,19 @@ public class XrayAgent implements Runnable {
           try {
             Thread.sleep(THREAD_DELAY);
           } catch (InterruptedException e) {
-            logger.error("## Xray interrupted", e);
+            log.error("## Xray interrupted", e);
             this.stop();
           }
         }
       } catch (Exception e) {
-        logger.error("## Xray Uncaught error detected, clearing queues as to allow processsing to continue", e);
+        log.error("## Xray Uncaught error detected, clearing queues as to allow processsing to continue", e);
 
         this.inProgressQueue.clear();
         this.processingQueue.clear();
       }
     }
 
-    if (this.stop) {
+    if (!this.running) {
       clearXrayQueues();
     }
   }
@@ -112,8 +112,8 @@ public class XrayAgent implements Runnable {
    * @param transaction
    */
   public void processTransaction(JsonLoggerTransaction transaction) {
-    if (this.stop) {
-      logger.error("## Xray Currently stopping. This activity was not recorded");
+    if (!this.running) {
+      log.error("## Xray Currently stopping. This activity was not recorded");
       return;
     }
 
@@ -123,14 +123,14 @@ public class XrayAgent implements Runnable {
   }
 
   private void clearXrayQueues() {
-    logger.info("## Xray clearing all queues");
+    log.info("## Xray clearing all queues");
     int previousFailedAttempts = 0;
 
     while (sendXrayBatch(true)) {
       if (isLastBatchSuccessful()) {
         previousFailedAttempts = 0;
       } else if (previousFailedAttempts >= FAIL_ON_FAILED_BATCH_SENDS) {
-        logger.error("## Xray Failed to send " + (1 + FAIL_ON_FAILED_BATCH_SENDS) + " batches. Abandoning.");
+        log.error("## Xray Failed to send " + (1 + FAIL_ON_FAILED_BATCH_SENDS) + " batches. Abandoning.");
         return;
       } else {
         previousFailedAttempts++;
@@ -151,7 +151,7 @@ public class XrayAgent implements Runnable {
 
     if (processingQueue.peek() == null) {
       if (DEBUG_MODE)
-        logger.debug("## Xray No items available to send");
+        log.debug("## Xray No items available to send");
       return false;
     }
 
@@ -173,8 +173,8 @@ public class XrayAgent implements Runnable {
     }
 
     if (DEBUG_MODE) {
-      logger.info("## Xray Picked a batch of " + processedItems + " item(s).");
-      logger.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+      log.info("## Xray Picked a batch of " + processedItems + " item(s).");
+      log.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
     }
     
     List<String> documents = generateXrayBatch(batchItems);
@@ -187,16 +187,16 @@ public class XrayAgent implements Runnable {
       if (documents.size() == 0) {
       } else if (publishXrayBatch(documents)) {
         if (DEBUG_MODE) {
-          logger.info("## Xray Successful batch send of "+ documents.size() + " item(s)");
+          log.info("## Xray Successful batch send of "+ documents.size() + " item(s)");
         }
       } else {
         // If we have an exception in sending, then
-        logger.info("## Xray Failed to send batch of items due to a bad status code. Pushing back onto the queue.");
+        log.info("## Xray Failed to send batch of items due to a bad status code. Pushing back onto the queue.");
         processingQueue.addAll(batchItems);
       }
     } catch (Exception e) {
       // If we have an exception in sending, then
-      logger.error("## Xray Failed to send batch of items. Pushing back onto the queue", e);
+      log.error("## Xray Failed to send batch of items. Pushing back onto the queue", e);
       processingQueue.addAll(batchItems);
     }
 
@@ -211,13 +211,13 @@ public class XrayAgent implements Runnable {
         String document = jsonLoggerConverter.convert(transaction);
         documents.add(document);
         if (DEBUG_MODE)
-          logger.info("## Xray document: " + document);
+          log.info("## Xray document: " + document);
       } catch (Exception e) {
         // If we can't parse the transaction, it means that we can't progress with it.
         // At this point our best option is to just drop it, so that we don't foul up
         // the process,
         // or get stuck in a continual loop.
-        logger.error("## Xray Couldn't parse transaction properly. Ignoring this transaction (" + transaction.getCorrelationId() + ")", e);
+        log.error("## Xray Couldn't parse transaction properly. Ignoring this transaction (" + transaction.getCorrelationId() + ")", e);
       }
     }
 
@@ -235,7 +235,7 @@ public class XrayAgent implements Runnable {
     lastBatchRequestId = result.getSdkResponseMetadata().getRequestId();
 
     if (DEBUG_MODE)
-      logger.info("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
+      log.info("## Xray Status: " + lastBatchStatus + ", RequestId: " + lastBatchRequestId);
 
     return isLastBatchSuccessful();
   }

@@ -1,15 +1,5 @@
 package com.intelematics.mule.log4j2.xray;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LogEvent;
@@ -19,130 +9,38 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.config.plugins.PluginFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
+import lombok.extern.log4j.Log4j2;
 
+@Log4j2
 @Plugin(name = "Xray", category = "Core", elementType = "appender", printObject = true)
 public class XrayAppender extends AbstractAppender {
 
-  private static final int EXPIRE_AFTER_SECONDS = 120;
-
-  private static Logger logger = LogManager.getLogger(XrayAppender.class);
-
-  static final Boolean DEBUG_MODE = System.getProperty("log4j.debug") != null;
-  static final Boolean DISABLE_LOGGING = System.getProperty("log4j.xray.disable") != null;
+  static final boolean DEBUG_MODE = getDebugMode();
+  static final boolean DISABLE_LOGGING = System.getProperty("log4j.xray.disable") != null;
   static String JsonLoggerClass = "org.mule.extension.jsonlogger.JsonLogger";
-
-  /**
-   * The queue used to buffer log entries
-   */
-  private XrayAgent xrayAgent;
-
-  private String awsRegion;
-
-  private HashMap<String, JsonLoggerTransaction> transactions = new HashMap<>();
-  private TreeMap<Instant, String> transactionExpiry = new TreeMap<>();
+  final XrayLogReceiver xrayLogReceiver;
 
   private XrayAppender(final String name, final Layout<?> layout, final Filter filter, final boolean ignoreExceptions, final String awsRegion, Integer queueLength, Integer messagesBatchSize) {
 
     super(name, filter, layout, ignoreExceptions, null);
-    this.awsRegion = awsRegion == null ? System.getProperty("awsRegion") : awsRegion;
+    String awsRegionValue = awsRegion == null ? System.getProperty("awsRegion") : awsRegion;
+    this.xrayLogReceiver = XrayLogReceiver.getInstance(awsRegionValue);
 
-    System.out.println("## Xray logging started  O.O"); // Can't use the logger here, as it is never setup right
-    // now.
+    System.out.println("## Xray logging started  O.O"); // Can't use the logger here, as it is never setup right now.
   }
 
   @Override
   public void append(LogEvent event) {
     try {
       
-      if (!DISABLE_LOGGING) {
-        sendXrayEvent(event);
+      if (!DISABLE_LOGGING && JsonLoggerClass.equals(event.getLoggerName())) {
+        xrayLogReceiver.processEvent(event);
+        System.out.println("## Event Added");
       }
       
     } catch (Exception e) {
-      logger.error("## Couldn't send to Xray", e);
+      log.error("## Couldn't send to Xray receiver", e);
     }
-  }
-
-  public void sendXrayEvent(LogEvent event) throws JsonMappingException, JsonProcessingException {
-    String loggerName = event.getLoggerName();
-
-    if (JsonLoggerClass.equals(loggerName)) {
-
-      if (DEBUG_MODE)
-        logger.info("## Xray event found ");
-      JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
-      JsonLoggerTransaction transaction = null;
-
-      switch (entry.getTrace()) {
-      case START:
-        transaction = getTransaction(entry);
-        transaction.setStart(entry);
-        transactions.put(entry.getCorrelationId(), transaction);
-        break;
-      case BEFORE_REQUEST:
-        transaction = getTransaction(entry);
-        transaction.addRequestTransaction().setStart(entry);
-        break;
-      case AFTER_REQUEST:
-        transaction = getTransaction(entry);
-        transaction.setTransactionEndRequest(entry);
-        break;
-      case EXCEPTION:
-        transaction = getTransaction(entry);
-        transaction.addException(entry);
-        break;
-      case END:
-        transaction = getTransaction(entry);
-        transaction.setEnd(entry);
-        break;
-      default:
-      }
-
-      if (transaction != null) {
-        getXrayAgent().processTransaction(transaction);
-      }
-
-      if (DEBUG_MODE)
-        logger.info("## Xray logged " + entry.getTrace());
-    }
-  }
-
-  private XrayAgent getXrayAgent() {
-    if (this.xrayAgent == null) {
-      this.xrayAgent = XrayAgent.getInstance(this.awsRegion);
-    }
-    return this.xrayAgent;
-  }
-
-  private JsonLoggerTransaction getTransaction(JsonLoggerEntry entry) {
-    Instant timeNow = Instant.now();
-
-    JsonLoggerTransaction transaction;
-    transaction = transactions.get(entry.getCorrelationId());
-    if (transaction == null) {
-      transaction = new JsonLoggerTransaction();
-      transactions.put(entry.getCorrelationId(), transaction);
-      transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
-    }
-
-    if (DEBUG_MODE)
-      logger.info("## Xray keys to expire: " + transactionExpiry.size() + ", open transactions: " + transactions.size());
-
-    // Remove any expired transactions - this will keep our maps tidy.
-    SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
-    if (!exipredKeys.isEmpty()) {
-      if (DEBUG_MODE)
-        logger.info("## Xray Purging keys: " + exipredKeys.values().stream().collect(Collectors.joining(",")));
-      exipredKeys.values().forEach(correlationId -> transactions.remove(correlationId));
-
-      Set<Instant> expiredInstants = new HashSet<>();
-      expiredInstants.addAll(exipredKeys.keySet()); // Avoid Concurrent modification
-      expiredInstants.forEach(key -> transactionExpiry.remove(key));
-    }
-
-    return transaction;
   }
 
   @Override
@@ -152,8 +50,8 @@ public class XrayAppender extends AbstractAppender {
 
   @Override
   public void stop() {
+    xrayLogReceiver.stop();
     super.stop();
-    getXrayAgent().stop();
   }
 
   @Override
@@ -169,5 +67,9 @@ public class XrayAppender extends AbstractAppender {
 
       @PluginAttribute(value = "messagesBatchSize") Integer messagesBatchSize) {
     return new XrayAppender(name, layout, null, ignoreExceptions, awsRegion, queueLength, messagesBatchSize);
+  }
+
+  public static boolean getDebugMode() {
+    return System.getProperty("log4j.debug") != null;
   }
 }
