@@ -28,7 +28,7 @@ public class XrayLogReceiver implements Runnable {
   private static Thread agentThread;
   private final XrayAgent xrayAgent;
   
-  private LinkedBlockingQueue<String> queue = new LinkedBlockingQueue<>();
+  private LinkedBlockingQueue<LogEvent> queue = new LinkedBlockingQueue<>();
   private boolean running = true;
 
   private XrayLogReceiver(String awsRegion) {
@@ -50,7 +50,7 @@ public class XrayLogReceiver implements Runnable {
   /** Take incoming events and add them to the list */
   public void processEvent(LogEvent event) {
     if (this.running) {
-      queue.add(event.getMessage().getFormattedMessage());
+      queue.add(event);
     }
   }
 
@@ -59,7 +59,7 @@ public class XrayLogReceiver implements Runnable {
   public void run() {
     while (this.running || queue.size() > 0) {
       try {
-        String item = queue.poll();
+        LogEvent item = queue.poll();
 
         if (item == null) {
           Thread.sleep(THREAD_DELAY);
@@ -85,11 +85,11 @@ public class XrayLogReceiver implements Runnable {
   }
 
   
-  public void sendXrayEvent(String message) throws JsonMappingException, JsonProcessingException {
+  public void sendXrayEvent(LogEvent event) throws JsonMappingException, JsonProcessingException {
 
     if (DEBUG_MODE)
       log.info("## Xray event found ");
-    JsonLoggerEntry entry = new JsonLoggerEntry(message);
+    JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
     JsonLoggerTransaction transaction = null;
 
     switch (entry.getTrace()) {
