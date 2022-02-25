@@ -50,7 +50,7 @@ public class XrayLogReceiver implements Runnable {
   /** Take incoming events and add them to the list */
   public void processEvent(LogEvent event) {
     if (this.running) {
-      queue.add(event);
+      queue.add(event.toImmutable());
     }
   }
 
@@ -65,7 +65,9 @@ public class XrayLogReceiver implements Runnable {
           Thread.sleep(THREAD_DELAY);
         } else {
           sendXrayEvent(item);
-          System.out.println("## Sent Message");
+
+          if (DEBUG_MODE)
+            System.out.println("## Sent Message");
         }
       } catch (Exception e) {
         log.error("## Xray Uncaught error while processing message, Ignoring item", e);
@@ -89,6 +91,7 @@ public class XrayLogReceiver implements Runnable {
 
     if (DEBUG_MODE)
       log.info("## Xray event found ");
+    
     JsonLoggerEntry entry = new JsonLoggerEntry(event.getMessage().getFormattedMessage());
     JsonLoggerTransaction transaction = null;
 
