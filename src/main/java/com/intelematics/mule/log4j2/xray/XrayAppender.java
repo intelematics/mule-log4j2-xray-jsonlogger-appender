@@ -35,7 +35,9 @@ public class XrayAppender extends AbstractAppender {
       
       if (!DISABLE_LOGGING && JsonLoggerClass.equals(event.getLoggerName())) {
         xrayLogReceiver.processEvent(event);
-        System.out.println("## Event Added");
+        
+        if (DEBUG_MODE)
+          System.out.println("## Event Added");
       }
       
     } catch (Exception e) {
