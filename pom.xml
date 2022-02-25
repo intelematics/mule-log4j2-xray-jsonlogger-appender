@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.intelematics.mule</groupId>
   <artifactId>log4j2-xray-jsonlogger-appender</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.20</version>
 
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -29,6 +29,7 @@
     <connection>scm:git:git://github.com/intelematics/mule-${project.artifactId}.git</connection>
     <developerConnection>scm:git:git@github.com:intelematics/mule-${project.artifactId}.git</developerConnection>
     <url>http://github.com/intelematics/mule-${project.artifactId}</url>
+    <tag>log4j2-xray-jsonlogger-appender-1.0.20</tag>
   </scm>
   <dependencies>
     <dependency>
