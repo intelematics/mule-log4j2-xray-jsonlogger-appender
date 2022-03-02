@@ -69,11 +69,14 @@ public class JsonLoggerTransaction {
     Instant lastTime = null;
 
     for (JsonLoggerEntry ent : getAllEntries()) {
-      if (lastTime == null || (ent.getTimeAsInstant() != null && ent.getTimeAsInstant().compareTo(lastTime) < 0)) {
-        lastTime = ent.getTimeAsInstant();
+      Instant entryTime = ent == null ? null : ent.getTimeAsInstant();
+      
+      if (entryTime == null) {
+      } else if (lastTime == null || entryTime.compareTo(lastTime) < 0) {
+        lastTime = entryTime;
       }
     }
-    ;
+    
     return lastTime;
   }
 
