@@ -22,7 +22,6 @@ public class JsonLoggerEntry {
   private int statusCode;
   private Map<String, String> payload;
   private TraceType trace;
-  private static final ObjectMapper mapper = new ObjectMapper();
 
   /*
    * Example message
@@ -40,6 +39,7 @@ public class JsonLoggerEntry {
    * }
    */
   public JsonLoggerEntry(String logMessage) throws JsonMappingException, JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
     JsonNode root = mapper.readTree(logMessage);
 
     environment = root.get("environment").asText();
