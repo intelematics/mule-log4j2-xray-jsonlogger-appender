@@ -13,8 +13,19 @@ import lombok.Data;
 
 @Data
 public class JsonLoggerEntry {
+  public enum TraceGroup {
+	  REQUEST, TRANSFORM
+  }
+  
   public enum TraceType {
-    START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN
+    START, END, BEFORE_REQUEST(TraceGroup.REQUEST), AFTER_REQUEST(TraceGroup.REQUEST), BEFORE_TRANSFORM(TraceGroup.TRANSFORM), AFTER_TRANSFORM(TraceGroup.TRANSFORM), EXCEPTION, UNKNOWN;
+    
+    public TraceGroup traceGroup;
+    TraceType(TraceGroup tg) {
+    	traceGroup = tg;
+    }    
+    TraceType() {
+    }    
   };
 
   private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion, traceId;

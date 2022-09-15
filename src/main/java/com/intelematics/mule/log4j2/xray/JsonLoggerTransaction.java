@@ -87,14 +87,11 @@ public class JsonLoggerTransaction {
   }
 
   public synchronized void setTransactionEndRequest(JsonLoggerEntry entry) {
-    if (requestTransactions.size() == 0) {
-      JsonLoggerTransaction transaction = addRequestTransaction();
-      transaction.setEnd(entry);
-      return;
-    }
 
     for (JsonLoggerTransaction transaction : requestTransactions) {
-      if (transaction.getEnd() == null && transaction.getStart().getFlow().equals(entry.getFlow())) {
+      if (	transaction.getEnd() == null 
+  		  	&& transaction.getStart().getTrace().traceGroup == entry.getTrace().traceGroup
+		  	&& transaction.getStart().getFlow().equals(entry.getFlow())) {
         transaction.setEnd(entry);
         return;
       }

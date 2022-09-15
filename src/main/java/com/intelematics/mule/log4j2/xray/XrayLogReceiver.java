@@ -102,10 +102,12 @@ public class XrayLogReceiver implements Runnable {
       transactions.put(entry.getCorrelationId(), transaction);
       break;
     case BEFORE_REQUEST:
+    case BEFORE_TRANSFORM:
       transaction = getTransaction(entry);
       transaction.addRequestTransaction().setStart(entry);
       break;
     case AFTER_REQUEST:
+    case AFTER_TRANSFORM:
       transaction = getTransaction(entry);
       transaction.setTransactionEndRequest(entry);
       break;
