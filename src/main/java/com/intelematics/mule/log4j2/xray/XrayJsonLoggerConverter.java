@@ -71,14 +71,14 @@ public class XrayJsonLoggerConverter {
       if (request.getStart() != null) {
         JsonLoggerEntry start = request.getStart();
 
-        Subsegment sub = new SubSegment("beforeRequest", s);
+        Subsegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
         setEventAttributes(reqSeg, sub, "before_request", start);
       }
 
       if (request.getEnd() != null) {
         JsonLoggerEntry end = request.getEnd();
 
-        Subsegment sub = new SubSegment("afterRequest", s);
+        Subsegment sub = new SubSegment("after "+ end.getTrace().traceGroup.name().toLowerCase(), s);
 
         // This ID is recieved back from teh child request and backfilled as the ID used
         // to make the request
