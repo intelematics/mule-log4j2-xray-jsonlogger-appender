@@ -31,7 +31,6 @@ public class XrayAgent implements Runnable {
   private static Thread agentThread;
 
   private final AWSXRayAsync xrayClient;
-  private final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
   private boolean running = true;
   private LinkedBlockingQueue<JsonLoggerTransaction> processingQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
@@ -173,8 +172,13 @@ public class XrayAgent implements Runnable {
     }
 
     if (DEBUG_MODE) {
-      log.info("## Xray Picked a batch of " + processedItems + " item(s).");
-      log.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+      if (processedItems > 0) {
+    	  log.info("## Xray Picked a batch of " + processedItems + " item(s).");
+      }
+      
+      if (batchItems.size() > 0) {
+    	  log.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+      }
     }
     
     List<String> documents = generateXrayBatch(batchItems);
@@ -205,6 +209,7 @@ public class XrayAgent implements Runnable {
 
   private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
     List<String> documents = new ArrayList<>();
+    final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
     for (JsonLoggerTransaction transaction : transactions) {
       try {
