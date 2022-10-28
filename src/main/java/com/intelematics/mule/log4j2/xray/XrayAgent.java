@@ -166,16 +166,16 @@ public class XrayAgent implements Runnable {
         notReadyQueue.add(nextItem);
         break;
       }
-
+	  
       batchItems.add(nextItem);
       processedItems++;
     }
-
+	  
     if (DEBUG_MODE) {
       if (processedItems > 0) {
     	  log.info("## Xray Picked a batch of " + processedItems + " item(s).");
       }
-      
+
       if (batchItems.size() > 0) {
     	  log.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
       }

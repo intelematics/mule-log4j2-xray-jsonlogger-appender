@@ -1,238 +1,297 @@
 package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 
-import com.amazonaws.xray.AWSXRayRecorder;
-import com.amazonaws.xray.entities.Entity;
-import com.amazonaws.xray.entities.SegmentImpl;
-import com.amazonaws.xray.entities.Subsegment;
-import com.amazonaws.xray.entities.SubsegmentImpl;
 import com.amazonaws.xray.entities.TraceID;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
 public class XrayJsonLoggerConverter {
 
-  private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
-  AWSXRayRecorder unusedRecorder = new AWSXRayRecorder();
+	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
 
-  class Segment extends SegmentImpl {
+	@Data
+	@JsonInclude(Include.NON_EMPTY)
+	class Segment extends SubSegment{
+		@JsonProperty("trace_id")
+		String traceId;
+		@JsonProperty("parent_id")
+		String parentId;
+		
+		
+		@JsonIgnore
+		private
+		Random rand;
+		public Random getRand() {
+			if (rand == null)
+				rand = new Random(traceId.hashCode());
+			
+			return rand;
+		}
 
-    public Segment(String name, TraceID traceId) {
-      super(unusedRecorder, name, traceId);
-    }
+		Map<String, Object> annotations = new HashMap<>();
 
-    @Override
-    public void addSubsegment(Subsegment subsegment) {
-      this.getSubsegments().add(subsegment);
-    }
-  }
+		public Segment(String name, String traceId) {
+			super (name, null);
+			this.traceId = traceId;
+			this.id = Long.toHexString(getRand().nextLong());
+		}
 
-  class SubSegment extends SubsegmentImpl {
-    public SubSegment(String name, Segment parentSegment) {
-      super(unusedRecorder, name, parentSegment);
-    }
-  }
 
-  public String convert(JsonLoggerTransaction transaction) {
-    JsonLoggerEntry baseEvent = transaction.getFirstEvent();
+		public String serialize() throws JsonProcessingException {
+			ObjectMapper mapper = new ObjectMapper();
+			return mapper.writeValueAsString(this);
+		}
+	}
 
-    String correlationId = transaction.getCorrelationId();
-    TraceID trace = TraceID.fromString(correlationId);
-    if (!correlationId.equals(trace.toString())) {
-      log.error("Bad traceId - this will probably cause disconnected logs (aws: " + trace.toString() + " vs generated: " + correlationId
-          + ") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
-    }
+	@Data
+	@JsonInclude(Include.NON_EMPTY)
+	class SubSegment {
+		String name;
+		String id;
+		@JsonProperty("start_time")
+		double startTime;
+		@JsonProperty("end_time")
+		double endTime;
+		@JsonProperty("in_progress")
+		@JsonInclude(Include.NON_DEFAULT)
+		boolean inProgress;
+		@JsonInclude(Include.NON_DEFAULT)
+		boolean error;
+		@JsonInclude(Include.NON_DEFAULT)
+		boolean fault;
 
-    Segment s = new Segment(baseEvent.getEnvironment() + ":" + baseEvent.getApplicationName() + ":" + baseEvent.getFlow(), trace);
+		Map<String, Map<String, Object>> http = new HashMap<>();
 
-    s.setTraceId(trace);
-    setSegmentAttributes(s, transaction);
+		Map<String, Object> annotations = new HashMap<>();
+		List<SubSegment> subsegments = new ArrayList<>();
 
-    if (transaction.getStart() != null) {
-      JsonLoggerEntry start = transaction.getStart();
+		public SubSegment(String name, Segment parentSegment) {
+			this.name = name;
+			if (parentSegment != null) {
+				this.id = Long.toHexString(parentSegment.getRand().nextLong());
+			}
+		}
 
-      Subsegment sub = new SubSegment("startLogEntry", s);
-      setEventAttributes(s, sub, "start", start);
-    }
+		public void addSubsegment(SubSegment subsegment) {
+			this.getSubsegments().add(subsegment);
+		}
+}
 
-    for (JsonLoggerTransaction request : transaction.getRequestTransactions()) {
+	public String convert(JsonLoggerTransaction transaction) throws JsonProcessingException {
+		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
 
-      JsonLoggerEntry baseRequestEvent = request.getStart() != null ? request.getStart() : request.getEnd();
+		String correlationId = transaction.getCorrelationId();
+		TraceID trace = TraceID.fromString(correlationId);
+		if (!correlationId.equals(trace.toString())) {
+			log.error("Bad traceId - this will probably cause disconnected logs (aws: " + trace.toString()
+					+ " vs generated: " + correlationId
+					+ ") please see the Log4J-Xray-JsonLogger Appender docs on generating correlationIDs.");
+		}
 
-      Subsegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
+		Segment s = new Segment(
+				baseEvent.getEnvironment() + ":" + baseEvent.getApplicationName() + ":" + baseEvent.getFlow(),
+				correlationId);
 
-      setSegmentAttributes(reqSeg, request);
+		setSegmentAttributes(s, transaction);
 
-      if (request.getStart() != null) {
-        JsonLoggerEntry start = request.getStart();
+		if (transaction.getStart() != null) {
+			JsonLoggerEntry start = transaction.getStart();
 
-        Subsegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
-        setEventAttributes(reqSeg, sub, "before_request", start);
-      }
+			SubSegment sub = new SubSegment("startLogEntry", s);
+			setEventAttributes(s, sub, "start", start);
+		}
 
-      if (request.getEnd() != null) {
-        JsonLoggerEntry end = request.getEnd();
+		for (JsonLoggerTransaction request : transaction.getRequestTransactions()) {
 
-        Subsegment sub = new SubSegment("after "+ end.getTrace().traceGroup.name().toLowerCase(), s);
+			JsonLoggerEntry baseRequestEvent = request.getStart() != null ? request.getStart() : request.getEnd();
 
-        // This ID is recieved back from teh child request and backfilled as the ID used
-        // to make the request
-        if (request.getEnd().getTraceId() != null) {
-          reqSeg.setId(request.getEnd().getTraceId());
-        }
+			SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
 
-        setEventAttributes(reqSeg, sub, "after_request", end);
-      }
+			setSegmentAttributes(reqSeg, request);
 
-      s.addSubsegment(reqSeg);
-    }
+			if (request.getStart() != null) {
+				JsonLoggerEntry start = request.getStart();
 
-    for (JsonLoggerEntry exception : transaction.getExceptions()) {
-      Subsegment exSeg = new SubSegment("exception", s);
-      setEventAttributes(s, exSeg, "exception", exception);
-    }
+				SubSegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
+				setEventAttributes(reqSeg, sub, "before_request", start);
+			}
 
-    if (transaction.getEnd() != null) {
-      JsonLoggerEntry end = transaction.getEnd();
-      Subsegment sub = new SubSegment("endLogEntry", s);
+			if (request.getEnd() != null) {
+				JsonLoggerEntry end = request.getEnd();
 
-      // For a request, this trace ID is given back to the parent, and read out in
-      // it's attributes
-      if (transaction.getEnd().getTraceId() != null) {
-        s.setParentId(transaction.getEnd().getTraceId());
-      }
+				SubSegment sub = new SubSegment("after " + end.getTrace().traceGroup.name().toLowerCase(), s);
 
-      setEventAttributes(s, sub, "end", end);
-    }
+				// This ID is recieved back from teh child request and backfilled as the ID used
+				// to make the request
+				if (request.getEnd().getTraceId() != null) {
+					reqSeg.setId(request.getEnd().getTraceId());
+				}
 
-    //This case often happens for async requests 
-    if (transaction.getStart() == null && transaction.getEnd() == null && transaction.getRequestTransactions().size() == 1) {
-      s.setInProgress(s.getSubsegments().get(0).isInProgress());
-    }
-    
-    String document = s.serialize();
+				setEventAttributes(reqSeg, sub, "after_request", end);
+			}
 
-    if (DEBUG_MODE)
-      log.debug("## Xray document: " + document);
+			s.addSubsegment(reqSeg);
+		}
 
-    return document;
-  }
+		for (JsonLoggerEntry exception : transaction.getExceptions()) {
+			SubSegment exSeg = new SubSegment("exception", s);
+			setEventAttributes(s, exSeg, "exception", exception);
+		}
 
-  private void setEventAttributes(Entity s, Subsegment sub, String prefix, JsonLoggerEntry event) {
-    if (event == null)
-      return;
+		if (transaction.getEnd() != null) {
+			JsonLoggerEntry end = transaction.getEnd();
+			SubSegment sub = new SubSegment("endLogEntry", s);
 
-    Map<String, Object> annotations = s.getAnnotations();
-    annotations.put(prefix + "_file", event.getFile());
-    annotations.put(prefix + "_flow", event.getFlow());
-    annotations.put(prefix + "_line", event.getFileLine());
+			// For a request, this trace ID is given back to the parent, and read out in
+			// it's attributes
+			if (transaction.getEnd().getTraceId() != null) {
+				s.setParentId(transaction.getEnd().getTraceId());
+			}
 
-    Instant time = event.getTimeAsInstant();
-    double eventTime = ((double) time.toEpochMilli()) / 1000;
+			setEventAttributes(s, sub, "end", end);
+		}
 
-    sub.setStartTime(eventTime);
-    sub.setEndTime(eventTime);
+		// This case often happens for async requests
+		if (transaction.getStart() == null && transaction.getEnd() == null
+				&& transaction.getRequestTransactions().size() == 1) {
+			s.setInProgress(s.getSubsegments().get(0).isInProgress());
+		}
 
-    sub.setAnnotations(filterLongAnnotations(event.getPayload()));
-    sub.setInProgress(false);
+		String document = s.serialize();
 
-    s.addSubsegment(sub);
-  }
+		if (DEBUG_MODE)
+			log.debug("## Xray document: " + document);
 
-  private Map<String, Object> filterLongAnnotations(Map<String, String> payload) {
-    Map<String, Object> subAnnotations = new HashMap<>(payload);
-    for (Entry<String, Object> entry : subAnnotations.entrySet()) {
-      if (entry.getValue().toString().length() > 250) {
-        entry.setValue("<Long value excluded>");
-      }
+		return document;
+	}
 
-    }
-    return subAnnotations;
-  }
+	private void setEventAttributes(SubSegment s, SubSegment sub, String prefix, JsonLoggerEntry event) {
+		if (event == null)
+			return;
 
-  private void setSegmentAttributes(Entity s, JsonLoggerTransaction transaction) {
+		Map<String, Object> annotations = s.getAnnotations();
+		annotations.put(prefix + "_file", event.getFile());
+		annotations.put(prefix + "_flow", event.getFlow());
+		annotations.put(prefix + "_line", event.getFileLine());
 
-    JsonLoggerEntry baseEvent = transaction.getFirstEvent();
+		Instant time = event.getTimeAsInstant();
+		double eventTime = ((double) time.toEpochMilli()) / 1000;
 
-    Instant startTime = baseEvent.getTimeAsInstant();
-    Instant endTime = transaction.getEnd() != null ? transaction.getEnd().getTimeAsInstant() : null;
+		sub.setStartTime(eventTime);
+		sub.setEndTime(eventTime);
 
-    s.setStartTime(((double) startTime.toEpochMilli()) / 1000);
+		sub.setAnnotations(filterLongAnnotations(event.getPayload()));
+		sub.setInProgress(false);
 
-    if (endTime == null) {
-      if (transaction.getStart() == null) {
-        s.setInProgress(true);
-      } else {
-        JsonLoggerEntry lastEvent = transaction.getFirstEvent();
-        s.setEndTime(((double) lastEvent.getTimeAsInstant().toEpochMilli()) / 1000);
-        s.setInProgress(false);
-      }
-    } else {
-      s.setEndTime(((double) endTime.toEpochMilli()) / 1000);
-      s.setInProgress(false);
-    }
+		s.addSubsegment(sub);
+	}
 
-    HashMap<String, Object> annotations = new HashMap<>();
+	private Map<String, Object> filterLongAnnotations(Map<String, String> payload) {
+		Map<String, Object> subAnnotations = new HashMap<>(payload);
+		for (Entry<String, Object> entry : subAnnotations.entrySet()) {
+			if (entry.getValue().toString().length() > 250) {
+				entry.setValue("<Long value excluded>");
+			}
 
-    annotations.put("application_name", baseEvent.getApplicationName());
-    annotations.put("correlation_id", baseEvent.getCorrelationId());
+		}
+		return subAnnotations;
+	}
 
-    putRequestField(s, baseEvent, "url", "url", baseEvent.getApplicationName());
-    putRequestField(s, baseEvent, "method", "method");
+	private void setSegmentAttributes(SubSegment s, JsonLoggerTransaction transaction) {
 
-    if (baseEvent.getDeviceOS() != null || baseEvent.getDeviceBuildVersion() != null) {
-      putRequestField(s, baseEvent, null, "user_agent", baseEvent.getDeviceOS() + " " + baseEvent.getDeviceBuildVersion());
-    }
+		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
 
-    if (transaction.getEnd() != null) {
-      int statusCode = transaction.getEnd().getStatusCode();
-      putResponseValue(s, statusCode, "status");
+		Instant startTime = baseEvent.getTimeAsInstant();
+		Instant endTime = transaction.getEnd() != null ? transaction.getEnd().getTimeAsInstant() : null;
 
-      if (statusCode >= 400 && statusCode < 500) {
-        s.setError(true);
-      } else if (statusCode >= 500 && statusCode < 600) {
-        s.setFault(true);
-      }
-    }
+		s.setStartTime(((double) startTime.toEpochMilli()) / 1000);
 
-    s.setAnnotations(annotations);
-  }
+		if (endTime == null) {
+			if (transaction.getStart() == null) {
+				s.setInProgress(true);
+			} else {
+				JsonLoggerEntry lastEvent = transaction.getFirstEvent();
+				s.setEndTime(((double) lastEvent.getTimeAsInstant().toEpochMilli()) / 1000);
+				s.setInProgress(false);
+			}
+		} else {
+			s.setEndTime(((double) endTime.toEpochMilli()) / 1000);
+			s.setInProgress(false);
+		}
 
-  private void putResponseValue(Entity s, Object payloadValue, String xrayKey) {
-    if (payloadValue != null) {
-      @SuppressWarnings("unchecked")
-      Map<String, Object> response = (HashMap<String, Object>) s.getHttp().get("response");
+		HashMap<String, Object> annotations = new HashMap<>();
 
-      if (response == null) {
-        response = new HashMap<String, Object>();
-        s.getHttp().put("response", response);
-      }
+		annotations.put("application_name", baseEvent.getApplicationName());
+		annotations.put("correlation_id", baseEvent.getCorrelationId());
 
-      response.put(xrayKey, payloadValue);
-    }
-  }
+		putRequestField(s, baseEvent, "url", "url", baseEvent.getApplicationName());
+		putRequestField(s, baseEvent, "method", "method");
 
-  private void putRequestField(Entity s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey) {
-    putRequestField(s, baseEvent, payloadKey, xrayKey, "");
-  }
+		if (baseEvent.getDeviceOS() != null || baseEvent.getDeviceBuildVersion() != null) {
+			putRequestField(s, baseEvent, null, "user_agent",
+					baseEvent.getDeviceOS() + " " + baseEvent.getDeviceBuildVersion());
+		}
 
-  private void putRequestField(Entity s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey, String prefix) {
-    String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
-    if (payloadValue != null || payloadKey == null) {
-      @SuppressWarnings("unchecked")
-      Map<String, Object> request = (HashMap<String, Object>) s.getHttp().get("request");
+		if (transaction.getEnd() != null) {
+			int statusCode = transaction.getEnd().getStatusCode();
+			putResponseValue(s, statusCode, "status");
 
-      if (request == null) {
-        request = new HashMap<String, Object>();
-        s.getHttp().put("request", request);
-      }
+			if (statusCode >= 400 && statusCode < 500) {
+				s.setError(true);
+			} else if (statusCode >= 500 && statusCode < 600) {
+				s.setFault(true);
+			}
+		}
 
-      request.put(xrayKey, prefix + (payloadValue == null ? "" : payloadValue));
-    }
-  }
+		s.setAnnotations(annotations);
+	}
+
+	private void putResponseValue(SubSegment s, Object payloadValue, String xrayKey) {
+		if (payloadValue != null) {
+			@SuppressWarnings("unchecked")
+			Map<String, Object> response = (HashMap<String, Object>) s.getHttp().get("response");
+
+			if (response == null) {
+				response = new HashMap<String, Object>();
+				s.getHttp().put("response", response);
+			}
+
+			response.put(xrayKey, payloadValue);
+		}
+	}
+
+	private void putRequestField(SubSegment s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey) {
+		putRequestField(s, baseEvent, payloadKey, xrayKey, "");
+	}
+
+	private void putRequestField(SubSegment s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey,
+			String prefix) {
+		String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
+		if (payloadValue != null || payloadKey == null) {
+			@SuppressWarnings("unchecked")
+			Map<String, Object> request = (HashMap<String, Object>) s.getHttp().get("request");
+
+			if (request == null) {
+				request = new HashMap<String, Object>();
+				s.getHttp().put("request", request);
+			}
+
+			request.put(xrayKey, prefix + (payloadValue == null ? "" : payloadValue));
+		}
+	}
 }
