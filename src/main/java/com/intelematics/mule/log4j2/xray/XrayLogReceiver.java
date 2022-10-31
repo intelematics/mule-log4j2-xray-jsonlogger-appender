@@ -1,8 +1,10 @@
 package com.intelematics.mule.log4j2.xray;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -23,7 +25,7 @@ public class XrayLogReceiver implements Runnable {
   private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
 
   private HashMap<String, JsonLoggerTransaction> transactions = new HashMap<>();
-  private TreeMap<Instant, String> transactionExpiry = new TreeMap<>();
+  private List<ExpiryTransaction> transactionExpiry = new ArrayList<>();
   private static XrayLogReceiver instance;
   private static Thread agentThread;
   private final XrayAgent xrayAgent;
@@ -115,20 +117,11 @@ public class XrayLogReceiver implements Runnable {
       transaction = getTransaction(entry);
       transaction.addException(entry);
 	  
-      //If we have an exception, likely this means that we are done with processing. Let's move to expired, to keep clean
-	  transactions.remove(transaction.getCorrelationId());
-	  Instant timeNow = Instant.now();
-	  transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
-
 	  break;
     case END:
       transaction = getTransaction(entry);
       transaction.setEnd(entry);
       
-	  //no longer need to store this as we are about to process and this is the last step. 
-	  // If it happens to be expired, it will be removed later
-	  transactions.remove(transaction.getCorrelationId());
-    	  
       break;
     default:
     }
@@ -142,6 +135,18 @@ public class XrayLogReceiver implements Runnable {
 
   }
 
+  class ExpiryTransaction {
+	  final JsonLoggerTransaction transaction;
+	  final Instant expiry;
+	  String correlationId;
+	  
+	  ExpiryTransaction(JsonLoggerTransaction transaction, Instant expiry, String correlationId) {
+		  this.transaction = transaction;
+		  this.expiry = expiry;
+		  this.correlationId = correlationId;
+	  }
+  }
+  
   private JsonLoggerTransaction getTransaction(JsonLoggerEntry entry) {
     Instant timeNow = Instant.now();
 
@@ -149,25 +154,43 @@ public class XrayLogReceiver implements Runnable {
     transaction = transactions.get(entry.getCorrelationId());
     if (transaction == null) {
       transaction = new JsonLoggerTransaction();
-      transactions.put(entry.getCorrelationId(), transaction);
-      transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
+      String correlationId = entry.getCorrelationId();
+      transactions.put(correlationId, transaction);
+      transactionExpiry.add(new ExpiryTransaction(transaction, timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), correlationId));
     }
 
     if (DEBUG_MODE)
       log.info("## Xray keys to expire: " + transactionExpiry.size() + ", open transactions: " + transactions.size());
 
-    // Remove any expired transactions - this will keep our maps tidy.
-    SortedMap<Instant, String> exipredKeys = transactionExpiry.headMap(timeNow);
-    if (!exipredKeys.isEmpty()) {
-      if (DEBUG_MODE)
-        log.info("## Xray Purging keys: " + exipredKeys.values().stream().collect(Collectors.joining(",")));
-      exipredKeys.values().forEach(correlationId -> transactions.remove(correlationId));
-
-      Set<Instant> expiredInstants = new HashSet<>();
-      expiredInstants.addAll(exipredKeys.keySet()); // Avoid Concurrent modification
-      expiredInstants.forEach(key -> transactionExpiry.remove(key));
-    }
+    removeExpiredItems(timeNow);
 
     return transaction;
   }
+
+	private void removeExpiredItems(Instant timeNow) {
+		// Get all keys that are actually now expired.
+	    ArrayList<ExpiryTransaction> expiredKeys = null;
+	    for (ExpiryTransaction expTr : transactionExpiry) {
+	    	if (expTr.expiry.isBefore(timeNow)) {
+	    		
+	    		if (expiredKeys == null) expiredKeys = new ArrayList<>();
+	    		expiredKeys.add(expTr);
+	    	} else {
+	    		break;
+	    	}
+	    }
+	    
+	    if (expiredKeys != null) {
+		    if (DEBUG_MODE)
+		        log.info("## Xray Purging keys: " + expiredKeys.size());
+		
+		    for (ExpiryTransaction expTr : expiredKeys) {
+		    	transactions.remove(expTr.correlationId);
+		    	transactionExpiry.remove(expTr);
+		    }
+		
+		    if (DEBUG_MODE)
+		        log.info("## Xray keys to new keys: " + transactionExpiry.size() + ", open transactions: " + transactions.size());
+	    }
+	}
 }
