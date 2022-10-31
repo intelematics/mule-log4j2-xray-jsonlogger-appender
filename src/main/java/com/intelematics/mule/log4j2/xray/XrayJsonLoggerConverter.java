@@ -23,6 +23,7 @@ import lombok.extern.log4j.Log4j2;
 public class XrayJsonLoggerConverter {
 
 	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
+	private ObjectMapper mapper = new ObjectMapper();
 
 	@Data
 	@JsonInclude(Include.NON_EMPTY)
@@ -38,7 +39,7 @@ public class XrayJsonLoggerConverter {
 		Random rand;
 		public Random getRand() {
 			if (rand == null)
-				rand = new Random(traceId.hashCode());
+				rand = new Random(traceId.hashCode()); //Using the traceID as the start will make this more deterministic, 
 			
 			return rand;
 		}
@@ -53,7 +54,6 @@ public class XrayJsonLoggerConverter {
 
 
 		public String serialize() throws JsonProcessingException {
-			ObjectMapper mapper = new ObjectMapper();
 			return mapper.writeValueAsString(this);
 		}
 	}

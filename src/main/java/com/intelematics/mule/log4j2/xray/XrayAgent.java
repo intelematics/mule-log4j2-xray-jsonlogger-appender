@@ -77,9 +77,10 @@ public class XrayAgent implements Runnable {
 
   @Override
   public void run() {
+	boolean hasMoreItems;
     while (this.running) {
       try {
-        boolean hasMoreItems = sendXrayBatch(false);
+        hasMoreItems = sendXrayBatch(false);
 
         if (!hasMoreItems) {
           try {
@@ -143,7 +144,9 @@ public class XrayAgent implements Runnable {
    * @return has more items?
    */
   private boolean sendXrayBatch(boolean forceSending) {
+	//When not forcing messages through, this queue holds the items that aren't ready to be sent yet.
     LinkedBlockingQueue<JsonLoggerTransaction> notReadyQueue = new LinkedBlockingQueue<>();
+    //The items that will be sent out
     List<JsonLoggerTransaction> batchItems = new ArrayList<>();
     JsonLoggerTransaction nextItem = null;
     int processedItems = 0;
