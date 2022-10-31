@@ -31,11 +31,10 @@ public class XrayAgent implements Runnable {
   private static Thread agentThread;
 
   private final AWSXRayAsync xrayClient;
-  private final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
   private boolean running = true;
   private LinkedBlockingQueue<JsonLoggerTransaction> processingQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
-  private LinkedBlockingQueue<JsonLoggerTransaction> inProgressQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
+  private List<JsonLoggerTransaction> inProgressQueue = new ArrayList<JsonLoggerTransaction>();
   private int lastBatchStatus;
   private String lastBatchRequestId;
 
@@ -78,9 +77,10 @@ public class XrayAgent implements Runnable {
 
   @Override
   public void run() {
+	boolean hasMoreItems;
     while (this.running) {
       try {
-        boolean hasMoreItems = sendXrayBatch(false);
+        hasMoreItems = sendXrayBatch(false);
 
         if (!hasMoreItems) {
           try {
@@ -138,14 +138,15 @@ public class XrayAgent implements Runnable {
     }
   }
 
+	//When not forcing messages through, this queue holds the items that aren't ready to be sent yet.
+  LinkedBlockingQueue<JsonLoggerTransaction> notReadyQueue = new LinkedBlockingQueue<>();
+
   /**
    * 
    * @param forceSending
    * @return has more items?
    */
   private boolean sendXrayBatch(boolean forceSending) {
-    LinkedBlockingQueue<JsonLoggerTransaction> notReadyQueue = new LinkedBlockingQueue<>();
-    List<JsonLoggerTransaction> batchItems = new ArrayList<>();
     JsonLoggerTransaction nextItem = null;
     int processedItems = 0;
 
@@ -156,7 +157,6 @@ public class XrayAgent implements Runnable {
     }
 
     while (processedItems < MAX_ITEMS_IN_BATCH && (nextItem = processingQueue.poll()) != null) {
-      inProgressQueue.add(nextItem);
       if (processingQueue.contains(nextItem)) {
         // Duplicate - likely from a completed item - we can ignore and process later to
         // eliminate duplicates
@@ -167,21 +167,26 @@ public class XrayAgent implements Runnable {
         notReadyQueue.add(nextItem);
         break;
       }
-
-      batchItems.add(nextItem);
+	  
+      inProgressQueue.add(nextItem);
       processedItems++;
     }
-
+	  
     if (DEBUG_MODE) {
-      log.info("## Xray Picked a batch of " + processedItems + " item(s).");
-      log.info("## Xray correlation Ids: " + batchItems.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+      if (processedItems > 0) {
+    	  log.info("## Xray Picked a batch of " + processedItems + " item(s).");
+      }
+
+      if (inProgressQueue.size() > 0) {
+    	  log.info("## Xray correlation Ids: " + inProgressQueue.stream().map(item -> item.getCorrelationId()).collect(Collectors.joining(",")));
+      }
     }
     
-    List<String> documents = generateXrayBatch(batchItems);
+    List<String> documents = generateXrayBatch(inProgressQueue);
 
     boolean hasNoMoreReadyItems = processingQueue.peek() != null;
     processingQueue.addAll(notReadyQueue);
-    inProgressQueue.clear();
+    notReadyQueue.clear();
 
     try {
       if (documents.size() == 0) {
@@ -192,19 +197,21 @@ public class XrayAgent implements Runnable {
       } else {
         // If we have an exception in sending, then
         log.info("## Xray Failed to send batch of items due to a bad status code. Pushing back onto the queue.");
-        processingQueue.addAll(batchItems);
+        processingQueue.addAll(inProgressQueue);
       }
     } catch (Exception e) {
       // If we have an exception in sending, then
       log.error("## Xray Failed to send batch of items. Pushing back onto the queue", e);
-      processingQueue.addAll(batchItems);
+      processingQueue.addAll(inProgressQueue);
     }
+    inProgressQueue.clear();
 
     return hasNoMoreReadyItems;
   }
 
   private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
     List<String> documents = new ArrayList<>();
+    final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
     for (JsonLoggerTransaction transaction : transactions) {
       try {
