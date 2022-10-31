@@ -114,10 +114,21 @@ public class XrayLogReceiver implements Runnable {
     case EXCEPTION:
       transaction = getTransaction(entry);
       transaction.addException(entry);
-      break;
+	  
+      //If we have an exception, likely this means that we are done with processing. Let's move to expired, to keep clean
+	  transactions.remove(transaction.getCorrelationId());
+	  Instant timeNow = Instant.now();
+	  transactionExpiry.put(timeNow.plusSeconds(EXPIRE_AFTER_SECONDS), entry.getCorrelationId());
+
+	  break;
     case END:
       transaction = getTransaction(entry);
       transaction.setEnd(entry);
+      
+	  //no longer need to store this as we are about to process and this is the last step. 
+	  // If it happens to be expired, it will be removed later
+	  transactions.remove(transaction.getCorrelationId());
+    	  
       break;
     default:
     }
