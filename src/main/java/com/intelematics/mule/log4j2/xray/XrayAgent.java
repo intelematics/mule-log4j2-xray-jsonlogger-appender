@@ -31,6 +31,7 @@ public class XrayAgent implements Runnable {
   private static Thread agentThread;
 
   private final AWSXRayAsync xrayClient;
+  private final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
   private boolean running = true;
   private LinkedBlockingQueue<JsonLoggerTransaction> processingQueue = new LinkedBlockingQueue<JsonLoggerTransaction>();
@@ -211,7 +212,6 @@ public class XrayAgent implements Runnable {
 
   private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
     List<String> documents = new ArrayList<>();
-    final XrayJsonLoggerConverter jsonLoggerConverter = new XrayJsonLoggerConverter();
 
     for (JsonLoggerTransaction transaction : transactions) {
       try {
