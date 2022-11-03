@@ -13,8 +13,19 @@ import lombok.Data;
 
 @Data
 public class JsonLoggerEntry {
+  public enum TraceGroup {
+	  REQUEST, TRANSFORM
+  }
+  
   public enum TraceType {
-    START, END, BEFORE_REQUEST, AFTER_REQUEST, EXCEPTION, UNKNOWN
+    START, END, BEFORE_REQUEST(TraceGroup.REQUEST), AFTER_REQUEST(TraceGroup.REQUEST), BEFORE_TRANSFORM(TraceGroup.TRANSFORM), AFTER_TRANSFORM(TraceGroup.TRANSFORM), EXCEPTION, UNKNOWN;
+    
+    public TraceGroup traceGroup;
+    TraceType(TraceGroup tg) {
+    	traceGroup = tg;
+    }    
+    TraceType() {
+    }    
   };
 
   private String environment, correlationId, tracePoint, applicationName, flow, file, fileLine, time, message, deviceOS, deviceBuildVersion, traceId;
@@ -22,7 +33,6 @@ public class JsonLoggerEntry {
   private int statusCode;
   private Map<String, String> payload;
   private TraceType trace;
-  private static final ObjectMapper mapper = new ObjectMapper();
 
   /*
    * Example message
@@ -40,6 +50,7 @@ public class JsonLoggerEntry {
    * }
    */
   public JsonLoggerEntry(String logMessage) throws JsonMappingException, JsonProcessingException {
+    ObjectMapper mapper = new ObjectMapper();
     JsonNode root = mapper.readTree(logMessage);
 
     environment = root.get("environment").asText();

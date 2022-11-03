@@ -69,11 +69,14 @@ public class JsonLoggerTransaction {
     Instant lastTime = null;
 
     for (JsonLoggerEntry ent : getAllEntries()) {
-      if (lastTime == null || (ent.getTimeAsInstant() != null && ent.getTimeAsInstant().compareTo(lastTime) < 0)) {
-        lastTime = ent.getTimeAsInstant();
+      Instant entryTime = ent == null ? null : ent.getTimeAsInstant();
+      
+      if (entryTime == null) {
+      } else if (lastTime == null || entryTime.compareTo(lastTime) < 0) {
+        lastTime = entryTime;
       }
     }
-    ;
+    
     return lastTime;
   }
 
@@ -84,14 +87,11 @@ public class JsonLoggerTransaction {
   }
 
   public synchronized void setTransactionEndRequest(JsonLoggerEntry entry) {
-    if (requestTransactions.size() == 0) {
-      JsonLoggerTransaction transaction = addRequestTransaction();
-      transaction.setEnd(entry);
-      return;
-    }
 
     for (JsonLoggerTransaction transaction : requestTransactions) {
-      if (transaction.getEnd() == null && transaction.getStart().getFlow().equals(entry.getFlow())) {
+      if (	transaction.getEnd() == null 
+  		  	&& transaction.getStart().getTrace().traceGroup == entry.getTrace().traceGroup
+		  	&& transaction.getStart().getFlow().equals(entry.getFlow())) {
         transaction.setEnd(entry);
         return;
       }
