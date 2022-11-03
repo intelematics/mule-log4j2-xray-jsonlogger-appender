@@ -174,8 +174,6 @@ public class XrayJsonLoggerConverter {
 
 		String document = s.serialize();
 
-		if (DEBUG_MODE)
-			log.debug("## Xray document: " + document);
 
 		return document;
 	}
