@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import com.intelematics.mule.log4j2.xray.converters.XrayJsonLoggerConverterImplJackson;
+import com.intelematics.mule.log4j2.xray.model.JsonLoggerEntry;
+import com.intelematics.mule.log4j2.xray.model.JsonLoggerTransaction;
 
 public class XrayJsonLoggerConverterTest {
 
@@ -123,7 +126,7 @@ public class XrayJsonLoggerConverterTest {
 				+ "    \"threadName\": \"[MuleRuntime].uber.4253: [e-arevo-api-sandbox-ia].interface-main.BLOCKING @6fe81b51\"\n"
 				+ "}"));
 		
-		String convertedStr = new XrayJsonLoggerConverter().convert(transaction);
+		String convertedStr = new XrayJsonLoggerConverterImplJackson().convert(transaction);
 		String expectedStr = "{\"name\":\"sandbox:e-arevo-api:interface-main\",\"id\":\"d664e05588ece19e\",\"error\":true,\"http\":{\"request\":{\"method\":\"GET\",\"url\":\"e-arevo-api/api/app-config?flavour=tfnsw\",\"user_agent\":\"iOS 2.2.6.1\"},\"response\":{\"status\":400}},\"annotations\":{\"end_flow\":\"interface-main\",\"application_name\":\"e-arevo-api\",\"end_file\":\"interface.xml\",\"correlation_id\":\"1-635b5654-814fa4dedafd41683fa03ffa\",\"start_line\":\"21\",\"start_file\":\"interface.xml\",\"start_flow\":\"interface-main\",\"end_line\":\"31\"},\"subsegments\":[{\"name\":\"startLogEntry\",\"id\":\"4691eadfc830a46\",\"annotations\":{\"method\":\"GET\",\"payload\":\"null\",\"session\":\"{\\\"deviceOS\\\":\\\"iOS\\\",\\\"buildVersion\\\":\\\"2.2.6.1\\\"}\",\"url\":\"/api/app-config?flavour=tfnsw\"},\"start_time\":1.666921643944E9,\"end_time\":1.666921643944E9},{\"name\":\"endLogEntry\",\"id\":\"80d5aafc7a806abb\",\"annotations\":{\"features\":\"<Long value excluded>\",\"requeryPaddingTolerancePercent\":\"0.7\",\"defaultZoomLevel\":\"15.5\",\"android\":\"{\\\"minVersion\\\":\\\"2.2.3.280\\\",\\\"denylist\\\":[]}\",\"gpsUpdateDistanceMeters\":\"2\",\"id\":\"tfnsw.sandbox\",\"ios\":\"{\\\"minVersion\\\":\\\"2.2.3.416\\\",\\\"denylist\\\":[]}\",\"searchPaddingPercent\":\"0.7\",\"gpsUpdateIntervalSec\":\"2\"},\"start_time\":1.666921644044E9,\"end_time\":1.666921644044E9}],\"start_time\":1.666921643944E9,\"end_time\":1.666921644044E9,\"trace_id\":\"1-635b5654-814fa4dedafd41683fa03ffa\"}";
 		
 		System.out.println("Output:");
