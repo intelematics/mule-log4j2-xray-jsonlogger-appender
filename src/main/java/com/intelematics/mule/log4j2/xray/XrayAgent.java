@@ -16,6 +16,7 @@ import com.amazonaws.services.xray.AWSXRayAsync;
 import com.amazonaws.services.xray.AWSXRayAsyncClientBuilder;
 import com.amazonaws.services.xray.model.PutTraceSegmentsRequest;
 import com.amazonaws.services.xray.model.PutTraceSegmentsResult;
+import com.intelematics.mule.log4j2.xray.converters.XrayJsonLoggerConverterImplGson;
 import com.intelematics.mule.log4j2.xray.converters.XrayJsonLoggerConverterImplJackson;
 import com.intelematics.mule.log4j2.xray.model.JsonLoggerTransaction;
 
@@ -38,7 +39,7 @@ public class XrayAgent implements Runnable {
 	private static Thread agentThread;
 
 	private final AWSXRayAsync xrayClient;
-	private final XrayJsonLoggerConverterImplJackson jsonLoggerConverter = new XrayJsonLoggerConverterImplJackson();
+	private final XrayJsonLoggerConverterImplGson jsonLoggerConverter = new XrayJsonLoggerConverterImplGson();
 
 	private boolean running = true;
 	private LinkedBlockingQueue<JsonLoggerTransaction> processingQueue = new LinkedBlockingQueue<>();
