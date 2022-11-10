@@ -1,4 +1,4 @@
-package com.intelematics.mule.log4j2.xray;
+package com.intelematics.mule.log4j2.xray.model;
 
 import java.time.Instant;
 import java.util.ArrayList;

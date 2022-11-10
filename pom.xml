@@ -10,6 +10,7 @@
     <aws.sdk.version>1.12.255</aws.sdk.version>
     <log4j.version>2.17.2</log4j.version>
     <junit.version>5.8.2</junit.version>
+    <mockito.version>4.8.1</mockito.version>
     <classifier>custom</classifier>
   </properties>
 
@@ -80,6 +81,18 @@
       <type>pom</type>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+    <groupId>org.mockito</groupId>
+    <artifactId>mockito-junit-jupiter</artifactId>
+    <version>${mockito.version}</version>
+    <scope>test</scope>
+</dependency>
   </dependencies>
   <build>
     <plugins>

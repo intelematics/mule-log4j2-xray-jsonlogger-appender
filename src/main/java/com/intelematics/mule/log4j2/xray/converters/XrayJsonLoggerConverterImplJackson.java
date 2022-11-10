@@ -1,4 +1,4 @@
-package com.intelematics.mule.log4j2.xray;
+package com.intelematics.mule.log4j2.xray.converters;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,12 +15,15 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.intelematics.mule.log4j2.xray.XrayAppender;
+import com.intelematics.mule.log4j2.xray.model.JsonLoggerEntry;
+import com.intelematics.mule.log4j2.xray.model.JsonLoggerTransaction;
 
 import lombok.Data;
 import lombok.extern.log4j.Log4j2;
 
 @Log4j2
-public class XrayJsonLoggerConverter {
+public class XrayJsonLoggerConverterImplJackson {
 
 	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
 	private ObjectMapper mapper = new ObjectMapper();
