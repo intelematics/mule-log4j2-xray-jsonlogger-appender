@@ -17,7 +17,6 @@ import com.amazonaws.services.xray.AWSXRayAsyncClientBuilder;
 import com.amazonaws.services.xray.model.PutTraceSegmentsRequest;
 import com.amazonaws.services.xray.model.PutTraceSegmentsResult;
 import com.intelematics.mule.log4j2.xray.converters.XrayJsonLoggerConverterImplGson;
-import com.intelematics.mule.log4j2.xray.converters.XrayJsonLoggerConverterImplJackson;
 import com.intelematics.mule.log4j2.xray.model.JsonLoggerTransaction;
 
 import lombok.extern.log4j.Log4j2;

@@ -9,16 +9,8 @@ import java.util.Map.Entry;
 import java.util.Random;
 
 import com.amazonaws.xray.entities.TraceID;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.intelematics.mule.log4j2.xray.XrayAppender;
 import com.intelematics.mule.log4j2.xray.model.JsonLoggerEntry;
