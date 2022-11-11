@@ -27,6 +27,7 @@ public class XrayJsonLoggerConverterImplJackson {
 
 	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
 	private ObjectMapper mapper = new ObjectMapper();
+	private static transient Random rand;
 
 	@Data
 	@JsonInclude(Include.NON_EMPTY)
@@ -42,7 +43,7 @@ public class XrayJsonLoggerConverterImplJackson {
 		Random rand;
 		public Random getRand() {
 			if (rand == null)
-				rand = new Random(traceId.hashCode()); //Using the traceID as the start will make this more deterministic, 
+				rand = new Random(name.hashCode() + traceId.hashCode()); //Using the traceID as the start will make this more deterministic, 
 			
 			return rand;
 		}

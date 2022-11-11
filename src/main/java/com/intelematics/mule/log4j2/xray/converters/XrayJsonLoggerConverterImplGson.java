@@ -23,6 +23,7 @@ import lombok.extern.log4j.Log4j2;
 public class XrayJsonLoggerConverterImplGson {
 
 	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
+	private static transient Random rand;
 
 	@Data
 	class Segment extends SubSegment{
@@ -32,11 +33,9 @@ public class XrayJsonLoggerConverterImplGson {
 		String parentId;
 		
 		
-		private transient
-		Random rand;
 		public Random getRand() {
 			if (rand == null)
-				rand = new Random(traceId.hashCode()); //Using the traceID as the start will make this more deterministic, 
+				rand = new Random(name.hashCode() + traceId.hashCode()); //Using the traceID as the start will make this more deterministic, 
 			
 			return rand;
 		}
