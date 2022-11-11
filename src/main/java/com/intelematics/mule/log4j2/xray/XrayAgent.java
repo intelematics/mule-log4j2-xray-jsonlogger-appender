@@ -25,7 +25,7 @@ import lombok.extern.log4j.Log4j2;
 public class XrayAgent implements Runnable {
 
 	private static final int FAIL_ON_FAILED_BATCH_SENDS = 2;
-	private static final long THREAD_DELAY = 2000L;
+	private static final long THREAD_DELAY = 500L;
 	private static final int MAX_ITEMS_IN_BATCH = 50;
 	// minimum size for a batch to be run for the second run (aka avoid the poll
 	// waiting)
