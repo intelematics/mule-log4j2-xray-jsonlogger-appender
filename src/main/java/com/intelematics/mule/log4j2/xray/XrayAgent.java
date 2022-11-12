@@ -58,7 +58,7 @@ public class XrayAgent implements Runnable {
 		return instance;
 	}
 
-	private XrayAgent(String awsRegion) {
+	XrayAgent(String awsRegion) {
 		this(awsRegion, new DefaultAWSCredentialsProviderChain().getCredentials().getAWSAccessKeyId(),
 				new DefaultAWSCredentialsProviderChain().getCredentials().getAWSSecretKey());
 
@@ -210,7 +210,15 @@ public class XrayAgent implements Runnable {
 		}
 	}
 
-	private void getReadyItems() {
+	int getReadyItemCount() {
+		return isReadyQueue.size();
+	}
+	
+	int getProcessingQueueCount() {
+		return processingQueue.size();
+	}
+	
+	void getReadyItems() {
 		JsonLoggerTransaction firstItem = processingQueue.poll();
 		JsonLoggerTransaction nextItem = firstItem;
 
@@ -240,6 +248,7 @@ public class XrayAgent implements Runnable {
 
 		if (DEBUG_MODE)
 			log.debug("## Picked " + isReadyQueue.size() + " items ready to send.");
+		
 	}
 
 	private List<String> generateXrayBatch(List<JsonLoggerTransaction> transactions) {
