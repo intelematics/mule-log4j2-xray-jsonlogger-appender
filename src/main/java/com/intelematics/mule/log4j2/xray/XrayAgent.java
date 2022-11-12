@@ -129,7 +129,10 @@ public class XrayAgent implements Runnable {
 			return;
 		}
 
-		if (!processingQueue.contains(transaction) && !inProgressQueue.contains(transaction)) {
+		if (!processingQueue.contains(transaction) &&
+				!isReadyQueue.contains(transaction) &&
+				!inProgressQueue.contains(transaction)
+				) {
 			processingQueue.add(transaction);
 		}
 	}
@@ -229,8 +232,10 @@ public class XrayAgent implements Runnable {
 			nextItem = processingQueue.poll();
 
 			// We have returned to the start
-			if (nextItem == firstItem)
+			if (nextItem == firstItem) {
+				processingQueue.add(nextItem);
 				break;
+			}
 		}
 
 		if (DEBUG_MODE)
