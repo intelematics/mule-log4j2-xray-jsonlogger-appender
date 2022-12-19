@@ -253,7 +253,7 @@ public class XrayJsonLoggerConverterImplJackson {
 			int statusCode = transaction.getEnd().getStatusCode();
 			putResponseValue(s, statusCode, "status");
 
-			if (statusCode >= 400 && statusCode < 500) {
+			if (statusCode >= 400 && statusCode < 500 && statusCode != 404) {
 				s.setError(true);
 			} else if (statusCode >= 500 && statusCode < 600) {
 				s.setFault(true);
