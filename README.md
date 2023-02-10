@@ -1,5 +1,5 @@
-What?
-====================
+## What is it
+
 Runs within a Mule runtime and converts any JSON Logger nodes in Mule and into XRay events that can be shown in AWS.
 
 This is capable of processing `START`, `END` events, `[BEFORE|AFTER]_REQUEST`, `[BEFORE|AFTER]_TRANSFORM`, as well as EXCEPTION.
@@ -18,8 +18,8 @@ To:
 
 
 
-Usage
-==========================
+## Usage
+
 * Build this application using the following command.
 
 ```mvn clean install```
