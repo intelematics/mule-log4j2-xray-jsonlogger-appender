@@ -84,6 +84,7 @@ public class XrayJsonLoggerConverterImpl {
 		}
 }
 
+	/** Converts all the objects in a flattened transaction into a Xray object for processing */
 	public String convert(JsonLoggerTransaction transaction) throws JsonProcessingException {
 		JsonLoggerEntry baseEvent = transaction.getFirstEvent();
 
@@ -110,37 +111,7 @@ public class XrayJsonLoggerConverterImpl {
 
 		for (JsonLoggerTransaction request : transaction.getRequestTransactions()) {
 
-			JsonLoggerEntry baseRequestEvent = request.getStart() != null ? request.getStart() : request.getEnd();
-
-			SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
-			if (request.getEnd().getTraceId() == null) {
-				reqSeg.setNamespace("remote");
-			}
-
-			setSegmentAttributes(reqSeg, request);
-
-			if (request.getStart() != null) {
-				JsonLoggerEntry start = request.getStart();
-
-				SubSegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
-				setEventAttributes(reqSeg, sub, "before_request", start);
-			}
-
-			if (request.getEnd() != null) {
-				JsonLoggerEntry end = request.getEnd();
-
-				SubSegment sub = new SubSegment("after " + end.getTrace().traceGroup.name().toLowerCase(), s);
-				
-				// This ID is recieved back from teh child request and backfilled as the ID used
-				// to make the request
-				if (request.getEnd().getTraceId() != null) {
-					reqSeg.setId(request.getEnd().getTraceId());
-				}
-
-				setEventAttributes(reqSeg, sub, "after_request", end);
-			}
-
-			s.addSubsegment(reqSeg);
+			s.addSubsegment(convertRequest(s, request));
 		}
 
 		for (JsonLoggerEntry exception : transaction.getExceptions()) {
@@ -173,6 +144,51 @@ public class XrayJsonLoggerConverterImpl {
 		return document;
 	}
 
+	/** Covert the before and after request into a segment based on the details provided*/
+	private SubSegment convertRequest(Segment s, JsonLoggerTransaction request) {
+		JsonLoggerEntry baseRequestEvent = request.getStart() != null ? request.getStart() : request.getEnd();
+
+		SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
+		if (request.getEnd().getTraceId() == null) {
+			reqSeg.setNamespace("remote");
+			
+			if (request.getStart() != null) {
+				putRequestField(reqSeg, request.getStart(), "url", "url");
+				putRequestField(reqSeg, request.getStart(), "method", "method");
+			}
+
+			if (request.getEnd() != null) {
+				int statusCode = request.getEnd().getStatusCode();
+				putResponseValue(s, statusCode, "status");
+			}
+		}
+
+		setSegmentAttributes(reqSeg, request);
+
+		if (request.getStart() != null) {
+			JsonLoggerEntry start = request.getStart();
+
+			SubSegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
+			setEventAttributes(reqSeg, sub, "before_request", start);
+		}
+
+		if (request.getEnd() != null) {
+			JsonLoggerEntry end = request.getEnd();
+
+			SubSegment sub = new SubSegment("after " + end.getTrace().traceGroup.name().toLowerCase(), s);
+			
+			// This ID is recieved back from teh child request and backfilled as the ID used
+			// to make the request
+			if (request.getEnd().getTraceId() != null) {
+				reqSeg.setId(request.getEnd().getTraceId());
+			}
+
+			setEventAttributes(reqSeg, sub, "after_request", end);
+		}
+		return reqSeg;
+	}
+
+	/** Sets debug objects so the flow is easier to identify */
 	private void setEventAttributes(SubSegment s, SubSegment sub, String prefix, JsonLoggerEntry event) {
 		if (event == null)
 			return;
@@ -194,6 +210,7 @@ public class XrayJsonLoggerConverterImpl {
 		s.addSubsegment(sub);
 	}
 
+	/** Stops Xray not sending requests as the data is too long. Fields must be less than 250 characters to be accepted*/
 	private Map<String, Object> filterLongAnnotations(Map<String, String> payload) {
 		Map<String, Object> subAnnotations = new HashMap<>(payload);
 		for (Entry<String, Object> entry : subAnnotations.entrySet()) {
@@ -254,6 +271,7 @@ public class XrayJsonLoggerConverterImpl {
 		s.setAnnotations(annotations);
 	}
 
+	/** Puts fields into the response object for Xray - creating if required. */
 	private void putResponseValue(SubSegment s, Object payloadValue, String xrayKey) {
 		if (payloadValue != null) {
 			@SuppressWarnings("unchecked")
@@ -267,11 +285,13 @@ public class XrayJsonLoggerConverterImpl {
 			response.put(xrayKey, payloadValue);
 		}
 	}
-
+	
+	/** Puts fields into the request object for Xray - creating if required. */
 	private void putRequestField(SubSegment s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey) {
 		putRequestField(s, baseEvent, payloadKey, xrayKey, "");
 	}
 
+	/** Puts fields into the request object for Xray - creating if required. */
 	private void putRequestField(SubSegment s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey,
 			String prefix) {
 		String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
