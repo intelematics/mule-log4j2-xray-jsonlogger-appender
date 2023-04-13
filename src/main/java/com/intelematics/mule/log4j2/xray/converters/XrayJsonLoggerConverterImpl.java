@@ -113,7 +113,9 @@ public class XrayJsonLoggerConverterImpl {
 			JsonLoggerEntry baseRequestEvent = request.getStart() != null ? request.getStart() : request.getEnd();
 
 			SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
-			reqSeg.setNamespace("remote");
+			if (request.getEnd().getTraceId() == null) {
+				reqSeg.setNamespace("remote");
+			}
 
 			setSegmentAttributes(reqSeg, request);
 
