@@ -23,7 +23,7 @@ import lombok.extern.log4j.Log4j2;
 public class XrayJsonLoggerConverterImplGson {
 
 	private static final boolean DEBUG_MODE = XrayAppender.getDebugMode();
-	private static transient Random rand;
+	protected static transient Random rand;
 
 	@Data
 	class Segment extends SubSegment{
@@ -65,6 +65,7 @@ public class XrayJsonLoggerConverterImplGson {
 		boolean inProgress;
 		boolean error;
 		boolean fault;
+		String namespace = "mule";
 
 		Map<String, Map<String, Object>> http = new HashMap<>();
 
@@ -120,13 +121,15 @@ public class XrayJsonLoggerConverterImplGson {
 
 				SubSegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
 				setEventAttributes(reqSeg, sub, "before_request", start);
+				sub.setNamespace("remote");
 			}
 
 			if (request.getEnd() != null) {
 				JsonLoggerEntry end = request.getEnd();
 
 				SubSegment sub = new SubSegment("after " + end.getTrace().traceGroup.name().toLowerCase(), s);
-
+				sub.setNamespace("remote");
+				
 				// This ID is recieved back from teh child request and backfilled as the ID used
 				// to make the request
 				if (request.getEnd().getTraceId() != null) {

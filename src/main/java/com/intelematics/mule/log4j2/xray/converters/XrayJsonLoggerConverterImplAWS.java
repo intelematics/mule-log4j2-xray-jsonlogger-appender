@@ -27,6 +27,7 @@ public class XrayJsonLoggerConverterImplAWS {
 
     public Segment(String name, TraceID traceId) {
       super(unusedRecorder, name, traceId);
+      this.setNamespace("mule");
     }
 
     @Override
@@ -38,6 +39,7 @@ public class XrayJsonLoggerConverterImplAWS {
   class SubSegment extends SubsegmentImpl {
     public SubSegment(String name, Segment parentSegment) {
       super(unusedRecorder, name, parentSegment);
+      this.setNamespace("mule");
     }
   }
 
@@ -75,6 +77,7 @@ public class XrayJsonLoggerConverterImplAWS {
         JsonLoggerEntry start = request.getStart();
 
         Subsegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
+        sub.setNamespace("remote");
         setEventAttributes(reqSeg, sub, "before_request", start);
       }
 
@@ -82,6 +85,8 @@ public class XrayJsonLoggerConverterImplAWS {
         JsonLoggerEntry end = request.getEnd();
 
         Subsegment sub = new SubSegment("after "+ end.getTrace().traceGroup.name().toLowerCase(), s);
+        sub.setNamespace("remote");
+
 
         // This ID is recieved back from teh child request and backfilled as the ID used
         // to make the request
