@@ -121,6 +121,7 @@ public class XrayJsonLoggerConverterImpl {
 				JsonLoggerEntry start = request.getStart();
 
 				SubSegment sub = new SubSegment("before " + start.getTrace().traceGroup.name().toLowerCase(), s);
+				sub.setNamespace("remote");
 				setEventAttributes(reqSeg, sub, "before_request", start);
 			}
 
@@ -128,6 +129,7 @@ public class XrayJsonLoggerConverterImpl {
 				JsonLoggerEntry end = request.getEnd();
 
 				SubSegment sub = new SubSegment("after " + end.getTrace().traceGroup.name().toLowerCase(), s);
+				sub.setNamespace("remote");
 				
 				// This ID is recieved back from teh child request and backfilled as the ID used
 				// to make the request
