@@ -159,8 +159,16 @@ public class XrayJsonLoggerConverterImpl {
 			
 		}
 
-		if (request.getStart() != null) {
+		if (request.getStart() != null && baseRequestEvent.getTrace().traceGroup == TraceGroup.REQUEST) {
 			putRequestField(reqSeg, request.getStart(), "url", "url");
+			
+			String 	method =  getPayloadValue(baseRequestEvent, "method"),
+					url = getPayloadValue(baseRequestEvent, "url");
+			
+			if (method != null && url != null) {
+				reqSeg.getAnnotations().put("message", reqSeg.getName());
+				reqSeg.setName(method + " " + url);
+			}
 		}
 
 		if (request.getStart() != null) {
@@ -292,7 +300,7 @@ public class XrayJsonLoggerConverterImpl {
 	/** Puts fields into the request object for Xray - creating if required. */
 	private void putRequestField(SubSegment s, JsonLoggerEntry baseEvent, String payloadKey, String xrayKey,
 			String prefix) {
-		String payloadValue = payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
+		String payloadValue = getPayloadValue(baseEvent, payloadKey);
 		if (payloadValue != null || payloadKey == null) {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> request = (HashMap<String, Object>) s.getHttp().get("request");
@@ -304,5 +312,9 @@ public class XrayJsonLoggerConverterImpl {
 
 			request.put(xrayKey, prefix + (payloadValue == null ? "" : payloadValue));
 		}
+	}
+
+	private String getPayloadValue(JsonLoggerEntry baseEvent, String payloadKey) {
+		return payloadKey == null ? null : baseEvent.getPayload().get(payloadKey);
 	}
 }
