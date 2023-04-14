@@ -152,12 +152,15 @@ public class XrayJsonLoggerConverterImpl {
 		SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
 		setSegmentAttributes(reqSeg, request);
 
-		if (request.getEnd().getTraceId() == null && baseRequestEvent.getTrace().traceGroup == TraceGroup.REQUEST) {
+		if (request.getEnd() != null &&
+				request.getEnd().getTraceId() == null //Only do this for external APIs, not between
+				&& baseRequestEvent.getTrace().traceGroup == TraceGroup.REQUEST) {
 			reqSeg.setNamespace("remote");
 			
-			if (request.getStart() != null) {
-				putRequestField(reqSeg, request.getStart(), "url", "url");
-			}
+		}
+
+		if (request.getStart() != null) {
+			putRequestField(reqSeg, request.getStart(), "url", "url");
 		}
 
 		if (request.getStart() != null) {
