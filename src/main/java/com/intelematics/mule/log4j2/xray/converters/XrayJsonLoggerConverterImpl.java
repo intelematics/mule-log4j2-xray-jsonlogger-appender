@@ -74,10 +74,14 @@ public class XrayJsonLoggerConverterImpl {
 		List<SubSegment> subsegments = new ArrayList<>();
 
 		public SubSegment(String name, Segment parentSegment) {
-			this.name = name;
+			this.setName(name);
 			if (parentSegment != null) {
 				this.id = Long.toHexString(parentSegment.getRand().nextLong());
 			}
+		}
+		
+		public void setName(String name) {
+			this.name = name == null ? null : name.replaceAll("[^a-zA-Z0-9\\/\\-.,?=&:+_ ]", "");
 		}
 
 		public void addSubsegment(SubSegment subsegment) {
