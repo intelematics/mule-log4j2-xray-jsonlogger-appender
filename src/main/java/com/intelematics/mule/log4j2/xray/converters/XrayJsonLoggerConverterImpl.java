@@ -14,6 +14,7 @@ import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 import com.intelematics.mule.log4j2.xray.XrayAppender;
 import com.intelematics.mule.log4j2.xray.model.JsonLoggerEntry;
+import com.intelematics.mule.log4j2.xray.model.JsonLoggerEntry.TraceGroup;
 import com.intelematics.mule.log4j2.xray.model.JsonLoggerTransaction;
 
 import lombok.Data;
@@ -151,7 +152,7 @@ public class XrayJsonLoggerConverterImpl {
 		SubSegment reqSeg = new SubSegment(baseRequestEvent.getMessage(), s);
 		setSegmentAttributes(reqSeg, request);
 
-		if (request.getEnd().getTraceId() == null) {
+		if (request.getEnd().getTraceId() == null && baseRequestEvent.getTrace().traceGroup == TraceGroup.REQUEST) {
 			reqSeg.setNamespace("remote");
 			
 			if (request.getStart() != null) {
